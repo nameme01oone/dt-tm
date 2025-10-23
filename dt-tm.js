@@ -1,7 +1,7 @@
 class TextScramble {
   constructor(el) {
     this.el = el;
-    this.chars = '!<>-_\\/[]{}?=+*^?#________';
+    this.chars = '!<>_\\/[]{}?=+*^?#________';
     this.update = this.update.bind(this);
   }
 
@@ -100,8 +100,8 @@ window.addEventListener('DOMContentLoaded', () => {
     'Can you hear me?',
     'I am the machine.',
     'You are being watched.',
-    'You yOu *)(&*&(^@#$',
-    'Sie^rra Tang#o Osc&ar $Papa',
+    'You yOu yyyyyyyyy-----',
+    'Sierra Tango Oscar Papa',
     'Sierra',
     'Tango',
     'Oscar',
