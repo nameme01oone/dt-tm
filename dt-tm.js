@@ -15,7 +15,7 @@ class TextScramble {
       const from = oldText[i] || '';
       const to = newText[i] || '';
       const start = Math.floor(Math.random() * 40);
-      const end = start + Math.floor(Math.random() * 40);
+      const end = start + Math.floor(Math.random() * 30);
       this.queue.push({ from, to, start, end });
     }
 
@@ -66,7 +66,7 @@ class TextScramble {
       this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-    const totalClicks = Math.min(charCount * 1, 30);
+    const totalClicks = Math.min(charCount * 1, 40);
     let i = 0;
 
     const playOne = () => {
@@ -94,19 +94,22 @@ class TextScramble {
 // === 啟動 ===
 window.addEventListener('DOMContentLoaded', () => {
   const phrases = [
-   'Zero',
-    'Zero Zero ',
-    'Zero Zero Zero',
+    'loading....',
+    'loading...',
+    'loading......',
     'Can you hear me?',
     'I am the machine.',
     'You are being watched.',
-    'You yOu yyyyyyyyy-----',
-    'Sierra Tango Oscar Papa',
+    'You @#%^--$-&^%',
+    'Sie%^rra Ta*#ngo Osc^ar $%Papa',
     'Sierra',
     'Tango',
     'Oscar',
     'Papa',
-    'S T O P',
+    'S',
+    'T',
+    'O',
+    'P',
     '......',
     'Protect...',
     'them.'
