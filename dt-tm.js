@@ -71,7 +71,7 @@ window.addEventListener('DOMContentLoaded', () => {
     'Can you hear me?',
     'I am the machine.',
     'You are being watched.',
-    'You @#%^--$-&^%',
+    'You ar@#%^-b^e-$&^wat%c&*',
     'Sie%^rra Ta*#ngo Osc^ar $%Papa',
     'Sierra',
     'Tango',
@@ -81,9 +81,14 @@ window.addEventListener('DOMContentLoaded', () => {
     'T',
     'O',
     'P',
-    '......',
+    'S T O P',
+    'losing signal....',
+    'losing signal...',
     'Protect...',
-    'them.'
+    'my people.'
+    '-Signal lost-',
+    '-Signal lost-'
+    '-Signal lost-'
   ];
 
   const el = document.querySelector('.text');
