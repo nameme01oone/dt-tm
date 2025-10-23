@@ -1,25 +1,71 @@
 @font-face {
-    font-family: APPLE II;
-    src: url(font/TM-font.ttf);
-  }
+  font-family: "APPLE II";
+  src: url(font/TM-font.ttf);
+}
 
 body {
-  font-family: APPLE II, monospace;
-  background: #000000;
-  height: 100%;
+  font-family: "APPLE II", monospace;
+  background: #000;
+  margin: 0;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
 }
+
+/* === CRT 效果 === */
+.crt {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  color: #0f0;
+  text-shadow: 0 0 2px #0f0;
+  overflow: hidden;
+}
+
+/* 掃描線與閃爍動畫 */
+.crt::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(0, 0, 0, 0.1) 1px,
+    rgba(0, 0, 0, 0.1) 2px
+  );
+  pointer-events: none;
+  animation: flicker 0.15s infinite;
+}
+
+@keyframes flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    opacity: 0.99;
+  }
+  20%, 24%, 55% {
+    opacity: 0.9;
+  }
+}
+
+/* === 中央對齊 === */
 .container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 100%;
   width: 100%;
-  justify-content: center;
-  align-items: center;
-  display: flex;
 }
+
+/* === 文字樣式 === */
 .text {
   font-weight: 100;
   font-size: 28px;
-  color: #fafafa;
+  color: #0f0;
+  text-align: center;
 }
+
 .dud {
-  color: #757575;
+  color: #004000;
 }
