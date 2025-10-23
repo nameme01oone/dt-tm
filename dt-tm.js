@@ -1,7 +1,3 @@
-// ??????????????????????????????????????????????????
-// TextScramble with Per-Phrase Typing Sound Effect
-// ??????????????????????????????????????????????????
-
 class TextScramble {
   constructor(el) {
     this.el = el;
@@ -26,9 +22,7 @@ class TextScramble {
     cancelAnimationFrame(this.frameRequest);
     this.frame = 0;
 
-    // 🔊 每次新文字開始時播放 typing 聲效
     this.playTypingSequence(newText.length);
-
     this.update();
     return promise;
   }
@@ -67,20 +61,19 @@ class TextScramble {
     return this.chars[Math.floor(Math.random() * this.chars.length)];
   }
 
-  // 🔉 播放連續打字聲（依文字長度調整）
   playTypingSequence(charCount) {
     if (!this.audioCtx) {
       this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-    const totalClicks = Math.min(charCount * 2, 40); // 限制最多 40 下
+    const totalClicks = Math.min(charCount * 2, 40);
     let i = 0;
 
     const playOne = () => {
       if (i >= totalClicks) return;
       this.playSingleClick();
       i++;
-      setTimeout(playOne, 30 + Math.random() * 40); // 每 30~70ms 一次
+      setTimeout(playOne, 30 + Math.random() * 40);
     };
 
     playOne();
@@ -89,21 +82,16 @@ class TextScramble {
   playSingleClick() {
     const osc = this.audioCtx.createOscillator();
     const gain = this.audioCtx.createGain();
-    osc.frequency.value = 800 + Math.random() * 400;
+    osc.frequency.value = 700 + Math.random() * 300;
     gain.gain.value = 0.04;
-
     osc.connect(gain);
     gain.connect(this.audioCtx.destination);
-
     osc.start();
     osc.stop(this.audioCtx.currentTime + 0.02);
   }
 }
 
-// ??????????????????????????????????????????????????
-// Example - sequential scrambled messages
-// ??????????????????????????????????????????????????
-
+// === 啟動 ===
 window.addEventListener('DOMContentLoaded', () => {
   const phrases = [
     'Can you hear me?',
@@ -113,17 +101,12 @@ window.addEventListener('DOMContentLoaded', () => {
   ];
 
   const el = document.querySelector('.text');
-  if (!el) {
-    console.error('❌ Element with class ".text" not found.');
-    return;
-  }
-
   const fx = new TextScramble(el);
   let counter = 0;
 
   const next = () => {
     fx.setText(phrases[counter]).then(() => {
-      setTimeout(next, 1000); // 每句之間停頓一秒
+      setTimeout(next, 1000);
     });
     counter = (counter + 1) % phrases.length;
   };
