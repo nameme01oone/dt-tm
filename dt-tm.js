@@ -66,7 +66,7 @@ class TextScramble {
       this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-    const totalClicks = Math.min(charCount * 1, 10);
+    const totalClicks = Math.min(charCount * 1, 20);
     let i = 0;
 
     const playOne = () => {
@@ -94,23 +94,21 @@ class TextScramble {
 // === 啟動 ===
 window.addEventListener('DOMContentLoaded', () => {
   const phrases = [
-    'Zero'
-    'Zero Zero '
-    'Zero Zero Zero,'
-    'Zero, Zero Zero Zero'
-    'Zero Zero Zero Zero Zero'
+    'Zero',
+    'Zero Zero ',
+    'Zero Zero Zero',
     'Can you hear me?',
     'I am the machine.',
     'You are being watched.',
     'You yOu *)(&*&(^@#$',
-    'Sierra Tango Oscar Papa',
+    'Sie^rra Tang#o Osc&ar $Papa',
     'Sierra',
     'Tango',
     'Oscar',
     'Papa',
-    'S T O P'
-    '......'
-    'Protect...'
+    'S T O P',
+    '......',
+    'Protect...',
     'them.'
   ];
 
