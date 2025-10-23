@@ -1,7 +1,10 @@
-@import 'https://fonts.googleapis.com/css?family=Roboto+Mono:100';
-html,
+@font-face {
+    font-family: APPLE II;
+    src: url(font/TM-font.ttf);
+  }
+
 body {
-  font-family: 'Roboto Mono', monospace;
+  font-family: APPLE II, monospace;
   background: #212121;
   height: 100%;
 }
