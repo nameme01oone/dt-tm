@@ -15,7 +15,7 @@ class TextScramble {
       const from = oldText[i] || '';
       const to = newText[i] || '';
       const start = Math.floor(Math.random() * 40);
-      const end = start + Math.floor(Math.random() * 30);
+      const end = start + Math.floor(Math.random() * 40);
       this.queue.push({ from, to, start, end });
     }
 
@@ -60,6 +60,35 @@ class TextScramble {
   randomChar() {
     return this.chars[Math.floor(Math.random() * this.chars.length)];
   }
+
+  playTypingSequence(charCount) {
+    if (!this.audioCtx) {
+      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    const totalClicks = Math.min(charCount * 2, 40);
+    let i = 0;
+
+    const playOne = () => {
+      if (i >= totalClicks) return;
+      this.playSingleClick();
+      i++;
+      setTimeout(playOne, 60 + Math.random() * 70);
+    };
+
+    playOne();
+  }
+
+  playSingleClick() {
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
+    osc.frequency.value = 700 + Math.random() * 300;
+    gain.gain.value = 0.04;
+    osc.connect(gain);
+    gain.connect(this.audioCtx.destination);
+    osc.start();
+    osc.stop(this.audioCtx.currentTime + 0.02);
+  }
 }
 
 // === 啟動 ===
@@ -87,7 +116,7 @@ window.addEventListener('DOMContentLoaded', () => {
     'Protect...',
     'my people.'
     '-Signal lost-',
-    '-Signal lost-'
+    '-Signal lost-',
     '-Signal lost-'
   ];
 
