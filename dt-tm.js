@@ -1,5 +1,5 @@
 // ??????????????????????????????????????????????????
-// TextScramble
+// TextScramble with Per-Phrase Typing Sound Effect
 // ??????????????????????????????????????????????????
 
 class TextScramble {
@@ -8,11 +8,13 @@ class TextScramble {
     this.chars = '!<>-_\\/[]{}?=+*^?#________';
     this.update = this.update.bind(this);
   }
+
   setText(newText) {
     const oldText = this.el.innerText;
     const length = Math.max(oldText.length, newText.length);
-    const promise = new Promise(resolve => this.resolve = resolve);
+    const promise = new Promise(resolve => (this.resolve = resolve));
     this.queue = [];
+
     for (let i = 0; i < length; i++) {
       const from = oldText[i] || '';
       const to = newText[i] || '';
@@ -20,14 +22,21 @@ class TextScramble {
       const end = start + Math.floor(Math.random() * 40);
       this.queue.push({ from, to, start, end });
     }
+
     cancelAnimationFrame(this.frameRequest);
     this.frame = 0;
+
+    // 🔊 每次新文字開始時播放 typing 聲效
+    this.playTypingSequence(newText.length);
+
     this.update();
     return promise;
   }
+
   update() {
     let output = '';
     let complete = 0;
+
     for (let i = 0, n = this.queue.length; i < n; i++) {
       let { from, to, start, end, char } = this.queue[i];
       if (this.frame >= end) {
@@ -43,7 +52,9 @@ class TextScramble {
         output += from;
       }
     }
+
     this.el.innerHTML = output;
+
     if (complete === this.queue.length) {
       this.resolve();
     } else {
@@ -51,31 +62,71 @@ class TextScramble {
       this.frame++;
     }
   }
+
   randomChar() {
     return this.chars[Math.floor(Math.random() * this.chars.length)];
-  }}
+  }
 
+  // 🔉 播放連續打字聲（依文字長度調整）
+  playTypingSequence(charCount) {
+    if (!this.audioCtx) {
+      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    const totalClicks = Math.min(charCount * 2, 40); // 限制最多 40 下
+    let i = 0;
+
+    const playOne = () => {
+      if (i >= totalClicks) return;
+      this.playSingleClick();
+      i++;
+      setTimeout(playOne, 30 + Math.random() * 40); // 每 30~70ms 一次
+    };
+
+    playOne();
+  }
+
+  playSingleClick() {
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
+    osc.frequency.value = 800 + Math.random() * 400;
+    gain.gain.value = 0.04;
+
+    osc.connect(gain);
+    gain.connect(this.audioCtx.destination);
+
+    osc.start();
+    osc.stop(this.audioCtx.currentTime + 0.02);
+  }
+}
 
 // ??????????????????????????????????????????????????
-// Example
+// Example - sequential scrambled messages
 // ??????????????????????????????????????????????????
 
-const phrases = [
-'Can you hear me?',
-'I am the machine.',
-'You are being watched.',
-'Protect them.'];
+window.addEventListener('DOMContentLoaded', () => {
+  const phrases = [
+    'Can you hear me?',
+    'I am the machine.',
+    'You are being watched.',
+    'Protect them.'
+  ];
 
+  const el = document.querySelector('.text');
+  if (!el) {
+    console.error('❌ Element with class ".text" not found.');
+    return;
+  }
 
-const el = document.querySelector('.text');
-const fx = new TextScramble(el);
+  const fx = new TextScramble(el);
+  let counter = 0;
 
-let counter = 0;
-const next = () => {
-  fx.setText(phrases[counter]).then(() => {
-    setTimeout(next, 800);
-  });
-  counter = (counter + 1) % phrases.length;
-};
+  const next = () => {
+    fx.setText(phrases[counter]).then(() => {
+      setTimeout(next, 1000); // 每句之間停頓一秒
+    });
+    counter = (counter + 1) % phrases.length;
+  };
 
-next();
+  next();
+});
