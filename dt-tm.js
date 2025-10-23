@@ -60,35 +60,6 @@ class TextScramble {
   randomChar() {
     return this.chars[Math.floor(Math.random() * this.chars.length)];
   }
-
-  playTypingSequence(charCount) {
-    if (!this.audioCtx) {
-      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    const totalClicks = Math.min(charCount * 1, 40);
-    let i = 0;
-
-    const playOne = () => {
-      if (i >= totalClicks) return;
-      this.playSingleClick();
-      i++;
-      setTimeout(playOne, 50 + Math.random() * 60);
-    };
-
-    playOne();
-  }
-
-  playSingleClick() {
-    const osc = this.audioCtx.createOscillator();
-    const gain = this.audioCtx.createGain();
-    osc.frequency.value = 700 + Math.random() * 300;
-    gain.gain.value = 0.04;
-    osc.connect(gain);
-    gain.connect(this.audioCtx.destination);
-    osc.start();
-    osc.stop(this.audioCtx.currentTime + 0.02);
-  }
 }
 
 // === 啟動 ===
