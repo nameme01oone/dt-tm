@@ -66,7 +66,7 @@ class TextScramble {
       this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-    const totalClicks = Math.min(charCount * 1, 20);
+    const totalClicks = Math.min(charCount * 2, 30);
     let i = 0;
 
     const playOne = () => {
