@@ -66,6 +66,13 @@ window.addEventListener('DOMContentLoaded', () => {
   const mainScreen = document.getElementById('main');
   const audio = document.getElementById('startup-sound');
 
+  // Attempt to play audio automatically
+  if (audio) {
+    audio.play().catch(error => {
+      console.error("Audio autoplay failed:", error);
+    });
+  }
+
   // 模擬開機延遲（3 秒）
   setTimeout(() => {
     loadingScreen.classList.add('fade-out');
