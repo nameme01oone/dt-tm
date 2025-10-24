@@ -1,39 +1,45 @@
 @font-face {
   font-family: "APPLE II";
-  /* Use a quoted relative path, add format() and display. Adjust path if your folder is "fonts/" */
+  /* Adjust path/casing if your file lives in /fonts/ or has a different name */
   src: url('./font/TM-font.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
 }
 
+:root {
+  --crt-bg: #000;
+  --crt-green: #0f0;
+  --crt-dark-green: #004000;
+}
+
 body {
   font-family: "APPLE II", monospace;
-  background: #000;
+  background: var(--crt-bg);
   margin: 0;
+  /* Avoid forcing scroll hiding unless necessary */
   overflow: hidden;
-  /* min-height is usually safer than forcing 100vh */
   min-height: 100vh;
   width: 100vw;
 }
 
-/* === CRT 效果 === */
+/* === CRT effect === */
 .crt {
   position: relative;
   width: 100%;
   height: 100%;
-  background: #000;
-  color: #0f0;
-  text-shadow: 0 0 2px #0f0;
+  background: var(--crt-bg);
+  color: var(--crt-green);
+  text-shadow: 0 0 2px var(--crt-green);
   overflow: hidden;
   z-index: 0;
 }
 
-/* 掃描線與閃爍動畫 */
+/* scanlines + flicker */
 .crt::after {
   content: "";
   position: absolute;
-  inset: 0; /* shorthand for top:0; right:0; bottom:0; left:0; */
+  inset: 0;
   background: repeating-linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.035) 0px,
@@ -41,24 +47,26 @@ body {
     rgba(0, 0, 0, 0.1) 2px
   );
   pointer-events: none;
-  /* explicit stacking so behavior is predictable */
-  z-index: 2;
-  /* slower and more noticeable flicker */
+  z-index: 2; /* explicit stacking */
   animation: flicker 1.5s infinite;
-  /* optional: blend the scanlines with the content */
-  mix-blend-mode: multiply;
+  mix-blend-mode: multiply; /* optional: better blending */
 }
 
+/* gentler, slower flicker; more perceptible but less aggressive */
 @keyframes flicker {
-  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+  20%, 24%, 55% { opacity: 0.75; }
+}
+
+/* prefer reduced motion: disable flicker for users who opt out */
+@media (prefers-reduced-motion: reduce) {
+  .crt::after {
+    animation: none;
     opacity: 1;
   }
-  20%, 24%, 55% {
-    opacity: 0.75;
-  }
 }
 
-/* === 中央對齊 === */
+/* === Centering === */
 .container {
   display: flex;
   align-items: center;
@@ -68,17 +76,16 @@ body {
   min-height: 100vh;
 }
 
-/* === 文字樣式 === */
+/* === Text styles === */
 .text {
-  /* custom font may not support very light weights */
-  font-weight: normal;
-  font-size: 28px;
-  color: #0f0;
+  font-weight: normal; /* many custom TTFs only provide a single weight */
+  font-size: 1.75rem; /* ~28px but respects root font-size scaling */
+  color: var(--crt-green);
   text-align: center;
   position: relative;
-  z-index: 3; /* ensure text sits above the scanline layer if desired */
+  z-index: 3; /* ensure text sits above the scanline layer */
 }
 
 .dud {
-  color: #004000;
+  color: var(--crt-dark-green);
 }
