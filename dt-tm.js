@@ -80,10 +80,30 @@ window.addEventListener('DOMContentLoaded', () => {
 // === 主畫面邏輯 ===
 function startMainSequence() {
   const phrases = [
+    'loading....',
+    'loading...',
+    'loading......',
     'Can you hear me?',
     'I am the machine.',
     'You are being watched.',
-    'Protect them.'
+    'You ar@#%^-b^e-$&^wat%c&*',
+    'Sie%^rra Ta*#ngo Osc^ar $%Papa',
+    'Sierra',
+    'Tango',
+    'Oscar',
+    'Papa',
+    'S',
+    'T',
+    'O',
+    'P',
+    'S T O P',
+    'losing signal....',
+    'losing signal...',
+    'Protect...',
+    'my people.'
+    '-Signal lost-',
+    '-Signal lost-'
+    '-Signal lost-'
   ];
 
   const el = document.querySelector('.text');
