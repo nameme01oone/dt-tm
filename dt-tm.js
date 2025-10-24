@@ -74,7 +74,7 @@ window.addEventListener('DOMContentLoaded', () => {
       mainScreen.classList.remove('hidden');
       startMainSequence();
     }, 1000);
-  }, 3000);
+  }, 2000);
 });
 
 // === 主畫面邏輯 ===
