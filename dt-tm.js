@@ -82,7 +82,7 @@ function startMainSequence() {
   const phrases = [
     'loading....',
     'loading...',
-    'loading......',
+    'loading....',
     'Can you hear me?',
     'I am the machine.',
     'You are being watched.',
