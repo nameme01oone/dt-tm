@@ -64,6 +64,7 @@ class TextScramble {
 window.addEventListener('DOMContentLoaded', () => {
   const loadingScreen = document.getElementById('loading');
   const mainScreen = document.getElementById('main');
+  const audio = document.getElementById('startup-sound');
 
   // 模擬開機延遲（3 秒）
   setTimeout(() => {
@@ -72,6 +73,9 @@ window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       loadingScreen.classList.add('hidden');
       mainScreen.classList.remove('hidden');
+      if (audio) {
+        audio.pause();
+      }
       startMainSequence();
     }, 1000);
   }, 2000);
