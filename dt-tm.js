@@ -21,8 +21,6 @@ class TextScramble {
 
     cancelAnimationFrame(this.frameRequest);
     this.frame = 0;
-
-    this.playTypingSequence(newText.length);
     this.update();
     return promise;
   }
@@ -60,64 +58,32 @@ class TextScramble {
   randomChar() {
     return this.chars[Math.floor(Math.random() * this.chars.length)];
   }
-
-  playTypingSequence(charCount) {
-    if (!this.audioCtx) {
-      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    const totalClicks = Math.min(charCount * 2, 40);
-    let i = 0;
-
-    const playOne = () => {
-      if (i >= totalClicks) return;
-      this.playSingleClick();
-      i++;
-      setTimeout(playOne, 60 + Math.random() * 70);
-    };
-
-    playOne();
-  }
-
-  playSingleClick() {
-    const osc = this.audioCtx.createOscillator();
-    const gain = this.audioCtx.createGain();
-    osc.frequency.value = 700 + Math.random() * 300;
-    gain.gain.value = 0.04;
-    osc.connect(gain);
-    gain.connect(this.audioCtx.destination);
-    osc.start();
-    osc.stop(this.audioCtx.currentTime + 0.02);
-  }
 }
 
-// === 啟動 ===
+// === 啟動流程 ===
 window.addEventListener('DOMContentLoaded', () => {
+  const loadingScreen = document.getElementById('loading');
+  const mainScreen = document.getElementById('main');
+
+  // 模擬開機延遲（3 秒）
+  setTimeout(() => {
+    loadingScreen.classList.add('fade-out');
+
+    setTimeout(() => {
+      loadingScreen.classList.add('hidden');
+      mainScreen.classList.remove('hidden');
+      startMainSequence();
+    }, 1000);
+  }, 3000);
+});
+
+// === 主畫面邏輯 ===
+function startMainSequence() {
   const phrases = [
-    'loading....',
-    'loading...',
-    'loading......',
     'Can you hear me?',
     'I am the machine.',
     'You are being watched.',
-    'You ar@#%^-b^e-$&^wat%c&*',
-    'Sie%^rra Ta*#ngo Osc^ar $%Papa',
-    'Sierra',
-    'Tango',
-    'Oscar',
-    'Papa',
-    'S',
-    'T',
-    'O',
-    'P',
-    'S T O P',
-    'losing signal....',
-    'losing signal...',
-    'Protect...',
-    'my people.'
-    '-Signal lost-',
-    '-Signal lost-',
-    '-Signal lost-'
+    'Protect them.'
   ];
 
   const el = document.querySelector('.text');
@@ -132,4 +98,4 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   next();
-});
+}
