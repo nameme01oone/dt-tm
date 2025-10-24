@@ -1,91 +1,104 @@
 @font-face {
-  font-family: "APPLE II";
-  /* Adjust path/casing if your file lives in /fonts/ or has a different name */
-  src: url('./font/TM-font.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-:root {
-  --crt-bg: #000;
-  --crt-green: #0f0;
-  --crt-dark-green: #004000;
+  font-family: APPLE II;
+  src: url(font/TM-font.ttf);
 }
 
 body {
-  font-family: "APPLE II", monospace;
-  background: var(--crt-bg);
+  font-family: 'APPLE II', monospace;
+  background: #000;
   margin: 0;
-  /* Avoid forcing scroll hiding unless necessary */
   overflow: hidden;
-  min-height: 100vh;
-  width: 100vw;
+  height: 100vh;
+  color: #0f0;
 }
 
-/* === CRT effect === */
-.crt {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background: var(--crt-bg);
-  color: var(--crt-green);
-  text-shadow: 0 0 2px var(--crt-green);
-  overflow: hidden;
-  z-index: 0;
-}
-
-/* scanlines + flicker */
-.crt::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.035) 0px,
-    rgba(0, 0, 0, 0.1) 1px,
-    rgba(0, 0, 0, 0.1) 2px
-  );
-  pointer-events: none;
-  z-index: 2; /* explicit stacking */
-  animation: flicker 1.5s infinite;
-  mix-blend-mode: multiply; /* optional: better blending */
-}
-
-/* gentler, slower flicker; more perceptible but less aggressive */
-@keyframes flicker {
-  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
-  20%, 24%, 55% { opacity: 0.75; }
-}
-
-/* prefer reduced motion: disable flicker for users who opt out */
-@media (prefers-reduced-motion: reduce) {
-  .crt::after {
-    animation: none;
-    opacity: 1;
-  }
-}
-
-/* === Centering === */
+/* Center everything */
 .container {
+  height: 100vh;
+  width: 100vw;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  width: 100%;
-  min-height: 100vh;
 }
 
-/* === Text styles === */
+/* Text styling */
 .text {
-  font-weight: normal; /* many custom TTFs only provide a single weight */
-  font-size: 1.75rem; /* ~28px but respects root font-size scaling */
-  color: var(--crt-green);
-  text-align: center;
-  position: relative;
-  z-index: 3; /* ensure text sits above the scanline layer */
+  font-weight: 100;
+  font-size: 28px;
+  color: #0f0;
+  text-shadow: 0 0 8px #0f0;
 }
 
 .dud {
-  color: var(--crt-dark-green);
+  color: #757575;
+}
+
+/* Loading screen */
+.loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #0f0;
+  font-family: 'APPLE II', monospace;
+  font-size: 24px;
+  text-shadow: 0 0 10px #0f0;
+  z-index: 1000;
+  animation: flicker 0.1s infinite;
+}
+
+.loading-text {
+  animation: blink 0.4s step-start infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.fade-out {
+  opacity: 0;
+  transition: opacity 1s ease-out;
+}
+
+.hidden {
+  display: none;
+}
+
+/* CRT effect flicker + scanlines */
+.crt {
+  position: relative;
+  filter: contrast(1.2) brightness(1.05);
+  animation: flicker 0.15s infinite;
+}
+
+.crt::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.1),
+    rgba(0, 0, 0, 0.1) 1px,
+    transparent 2px,
+    transparent 3px
+  );
+  pointer-events: none;
+  z-index: 10;
+}
+
+@keyframes flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    opacity: 1;
+  }
+  20%, 24%, 55% {
+    opacity: 0.8;
+  }
 }
