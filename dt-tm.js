@@ -66,11 +66,14 @@ window.addEventListener('DOMContentLoaded', () => {
   const mainScreen = document.getElementById('main');
   const audio = document.getElementById('startup-sound');
 
-  // Attempt to play audio automatically
+  // 進入頁面後嘗試立即自動播放
   if (audio) {
-    audio.play().catch(error => {
-      console.error("Audio autoplay failed:", error);
-    });
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.error('Audio autoplay failed:', error);
+      });
+    }
   }
 
   // 模擬開機延遲（3 秒）
@@ -80,9 +83,6 @@ window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       loadingScreen.classList.add('hidden');
       mainScreen.classList.remove('hidden');
-      if (audio) {
-        audio.pause();
-      }
       startMainSequence();
     }, 1000);
   }, 2000);
@@ -119,17 +119,59 @@ function startMainSequence() {
 
   const el = document.querySelector('.text');
   const fx = new TextScramble(el);
+  const audio = document.getElementById('startup-sound');
   let counter = 0;
+
+  if (audio) {
+    audio.play().catch(error => {
+      console.error("Audio autoplay failed:", error);
+    });
+  }
 
   const next = () => {
     fx.setText(phrases[counter]).then(() => {
-      if (phrases[counter] === '-Signal lost-' && counter >= phrases.length - 3) {
+      const currentPhrase = phrases[counter];
+
+      if (counter === 2) {
+        if (audio) {
+          audio.pause();
+        }
+      }
+
+      if (currentPhrase === 'Can you hear me?') {
+        if (audio) {
+          try {
+            audio.pause();
+            audio.src = 'Root2_1_01.mp3';
+            audio.currentTime = 0;
+            audio.loop = false;
+            audio.onended = () => {
+              try {
+                audio.pause();
+                audio.currentTime = 0;
+              } catch (e) {
+                console.error('Audio end cleanup failed:', e);
+              }
+            };
+            const playPromise = audio.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+              playPromise.catch(err => console.error('Audio play failed:', err));
+            }
+          } catch (err) {
+            console.error('Audio switching failed:', err);
+          }
+        }
+      }
+
+      if (currentPhrase === '-Signal lost-' && counter >= phrases.length - 3) {
         triggerSignalLost();
         return;
       }
-      setTimeout(next, 1000);
+
+      const delay = currentPhrase === 'Can you hear me?' ? 2000 : 1000;
+      counter = (counter + 1) % phrases.length;
+      setTimeout(next, delay);
     });
-    counter = (counter + 1) % phrases.length;
   };
 
   next();
