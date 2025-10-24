@@ -22,7 +22,12 @@
       </div>
     </div>
 
-            <audio id="startup-sound" src="samaritan_sound_effects_01.mp3" loop></audio>
+            <audio id="startup-sound" loop preload="auto" playsinline webkit-playsinline>
+              <source src="samaritan_sound_effects_01.mp3" type="audio/mpeg">
+            </audio>
+            <audio id="hear-sound" preload="auto" playsinline webkit-playsinline>
+              <source src="Root2_1_01.mp3" type="audio/mpeg">
+            </audio>
     <script src="dt-tm.js"></script>
   </body>
 </html>

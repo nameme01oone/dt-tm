@@ -68,12 +68,39 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // 進入頁面後嘗試立即自動播放
   if (audio) {
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        console.error('Audio autoplay failed:', error);
-      });
-    }
+    const ua = navigator.userAgent.toLowerCase();
+     const isAndroid = /android/.test(ua);
+     const isHuawei = /huawei|honor/.test(ua) || (navigator.vendor && /huawei/i.test(navigator.vendor));
+     const prime = el => {
+       if (!el) return;
+       const warmupMs = (isAndroid || isHuawei) ? 500 : 300;
+       el.muted = true;
+       el.preload = 'auto';
+       try { el.load(); } catch (_) {}
+       const p = el.play();
+       if (p && typeof p.then === 'function') {
+         p.then(() => {
+           setTimeout(() => {
+             try {
+               el.pause();
+               el.currentTime = 0;
+               el.muted = false;
+             } catch (_) {}
+           }, warmupMs);
+         }).catch(() => {});
+       } else {
+         try {
+           setTimeout(() => {
+             try {
+               el.pause();
+               el.currentTime = 0;
+               el.muted = false;
+             } catch (_) {}
+           }, warmupMs);
+         } catch (_) {}
+       }
+     };
+    prime(audio);
   }
 
   // 模擬開機延遲（3 秒）
