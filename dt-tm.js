@@ -267,7 +267,31 @@ function startMainSequence() {
           try {
             mid.currentTime = 0;
             mid.loop = true;
-            mid.volume = 0.6;
+            // 使用 Web Audio API 增益節點，將 mid-sound 提升到 1.1（超過 1.0）
+            try {
+              const AC = window.AudioContext || window.webkitAudioContext;
+              if (AC) {
+                if (!mid.__boostConnected) {
+                  const ctx = window.__tmMidCtx || new AC();
+                  window.__tmMidCtx = ctx;
+                  if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
+                  const src = ctx.createMediaElementSource(mid);
+                  const gain = ctx.createGain();
+                  gain.gain.value = 1.1;
+                  window.__tmMidGain = gain;
+                  src.connect(gain).connect(ctx.destination);
+                  mid.__boostConnected = true;
+                  console.log('[Mid] Gain boost connected: 1.1');
+                } else if (window.__tmMidGain) {
+                  window.__tmMidGain.gain.value = 1.1;
+                  console.log('[Mid] Gain boost updated: 1.1');
+                }
+              }
+            } catch (e) {
+              console.warn('[Mid] Gain boost failed:', e);
+            }
+            // 將元素自身音量設定為 1.0，增益由 GainNode 控制
+            mid.volume = 1.0;
             const mp = mid.play();
             if (mp && typeof mp.then === 'function') {
               mp.then(() => console.log('[Mid] Started at I am the machine.'))
@@ -522,10 +546,34 @@ function screenShutdown() {
       if (end) {
         end.currentTime = 0;
         end.loop = false;
-        end.volume = 0.8;
+        // 使用 Web Audio API 增益節點，將音量提升到 1.1（超過 1.0）
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (AC) {
+            if (!end.__boostConnected) {
+              const ctx = window.__tmEndCtx || new AC();
+              window.__tmEndCtx = ctx;
+              if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
+              const src = ctx.createMediaElementSource(end);
+              const gain = ctx.createGain();
+              gain.gain.value = 1.1;
+              window.__tmEndGain = gain;
+              src.connect(gain).connect(ctx.destination);
+              end.__boostConnected = true;
+              console.log('[End] Gain boost connected: 1.3');
+            } else if (window.__tmEndGain) {
+              window.__tmEndGain.gain.value = 1.3;
+              console.log('[End] Gain boost updated: 1.3');
+            }
+          }
+        } catch (e) {
+          console.warn('[End] Gain boost failed:', e);
+        }
+        // 將元素自身音量設定為 1.0，增益由 GainNode 控制
+        end.volume = 1.0;
         const ep = end.play();
         if (ep && typeof ep.then === 'function') {
-          ep.then(() => console.log('[End] Played at screenShutdown (delayed 3000ms)'))
+          ep.then(() => console.log('[End] Played at screenShutdown (delayed 2000ms)'))
             .catch(err => console.warn('[End] play failed:', err));
         }
       } else {
@@ -577,8 +625,14 @@ function crtFadeToCRTLine() {
     { duration: 1200, easing: 'ease-in-out', fill: 'forwards' }
   );
 
+  // 不再移除整個 body，避免播放中的音訊被中斷
   setTimeout(() => {
     document.body.style.background = '#000';
-    document.body.innerHTML = '';
+    const blackout = document.createElement('div');
+    blackout.style.position = 'fixed';
+    blackout.style.inset = '0';
+    blackout.style.background = '#000';
+    blackout.style.zIndex = 99999;
+    document.body.appendChild(blackout);
   }, 1500);
 }
