@@ -66,6 +66,19 @@ window.addEventListener('DOMContentLoaded', () => {
   const mainScreen = document.getElementById('main');
   const audio = document.getElementById('startup-sound');
 
+  // iOS Safari 初始化延遲優化：頁面 ready 後對所有音訊元素執行一次 load()
+  try {
+    document.querySelectorAll('audio').forEach(el => {
+      try {
+        if (!el.preload || el.preload === 'none') el.preload = 'auto';
+        el.load();
+      } catch (e) {
+        console.warn('[Preload] audio load failed:', e);
+      }
+    });
+  } catch (_) {}
+
+
   // === iOS 自動播放解鎖機制 ===
   function iosAutoPlayHack() {
     if (!audio) return;
