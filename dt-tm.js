@@ -389,6 +389,17 @@ function triggerSignalLost() {
   const body = document.body;
   const el = document.querySelector('.text');
 
+  // 立即停止所有音效，避免 dt_tm_threat.mp3 在關機畫面出現
+  ['machine-hum', 'threat-sound', 'hear-sound', 'startup-sound'].forEach(id => {
+    const a = document.getElementById(id);
+    if (a && !a.paused) {
+      try {
+        a.pause();
+        a.currentTime = 0;
+      } catch (_) {}
+    }
+  });
+
   let flashes = 0;
   const flashInterval = setInterval(() => {
     body.style.backgroundColor = flashes % 2 === 0 ? '#0f0' : '#000';
@@ -396,12 +407,46 @@ function triggerSignalLost() {
     flashes++;
     if (flashes > 4) {
       clearInterval(flashInterval);
-      setTimeout(screenShutdown, 300);
+      setTimeout(() => {
+        try {
+          const hum = document.getElementById('machine-hum');
+          if (hum) {
+            if (!hum.paused) hum.pause();
+            hum.currentTime = 0;
+            console.log('[Hum] Stopped before screenShutdown');
+          }
+        } catch (e) {
+          console.error('Hum stop failed:', e);
+        }
+        screenShutdown();
+      }, 300);
     }
   }, 150);
 }
 
 function screenShutdown() {
+  // 設定延遲 2000ms 播放關機結束音效
+  console.log('[End] Scheduled with 2000ms delay');
+  setTimeout(() => {
+    try {
+      const end = document.getElementById('end-sound');
+      if (end) {
+        end.currentTime = 0;
+        end.loop = false;
+        end.volume = 0.8;
+        const ep = end.play();
+        if (ep && typeof ep.then === 'function') {
+          ep.then(() => console.log('[End] Played at screenShutdown (delayed 3500ms)'))
+            .catch(err => console.warn('[End] play failed:', err));
+        }
+      } else {
+        console.warn('[End] element missing at screenShutdown');
+      }
+    } catch (e) {
+      console.error('[End] error:', e);
+    }
+  }, 2000);
+
   const crt = document.querySelector('.crt') || document.body;
   const overlay = document.createElement('div');
   overlay.style.cssText = `
@@ -416,6 +461,7 @@ function screenShutdown() {
   setTimeout(() => (overlay.style.opacity = 1), 300);
   setTimeout(() => crtFadeToCRTLine(), 3000);
 }
+
 
 function crtFadeToCRTLine() {
   const line = document.createElement('div');
