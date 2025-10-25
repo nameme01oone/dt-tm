@@ -211,7 +211,6 @@ window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       loadingScreen.classList.add('hidden');
       mainScreen.classList.remove('hidden');
-      try { initAudioUnlockOverlay(); maybeShowAudioUnlockOverlay(); initMuteToggle(); } catch(_){}
       startMainSequence();
     }, 1000);
   }, 2000);
@@ -259,109 +258,6 @@ async function __tmDecode(url) {
   }
 }
 
-// === 行動裝置音效解鎖 & 覆蓋層 ===
-function isMobileUA() {
-  try {
-    const ua = navigator.userAgent || navigator.vendor || '';
-    return /iPhone|iPad|iPod|Android|Samsung|SM-|HUAWEI|HONOR|Mi|Redmi|Xiaomi|HuaweiBrowser/i.test(ua);
-  } catch (_) { return false; }
-}
-
-async function unlockAudioByUserGesture() {
-  try {
-    if (typeof window.__tmResumeCtx === 'function') await window.__tmResumeCtx();
-    const ctx = __tmGetCtx();
-    if (ctx && ctx.state === 'suspended') { try { await ctx.resume(); } catch (_) {} }
-    await prewarmShortBuffers();
-    const overlay = document.getElementById('audio-unlock');
-    if (overlay) overlay.classList.add('hidden');
-    console.log('[Audio] unlocked by user gesture');
-  } catch (e) {
-    console.warn('[Audio] unlock by gesture failed:', e);
-  }
-}
-
-function initAudioUnlockOverlay() {
-  try {
-    let overlay = document.getElementById('audio-unlock');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'audio-unlock';
-      overlay.className = 'audio-unlock hidden';
-      overlay.innerHTML = '<div class="audio-unlock-inner"><div class="audio-unlock-title">點一下啟動音效</div><div class="audio-unlock-desc">iOS/Android 需要用戶手勢解鎖音訊</div><div class="audio-unlock-brand">THE MACHINE</div></div>';
-      document.body.appendChild(overlay);
-    }
-    overlay.addEventListener('click', unlockAudioByUserGesture, { once: false });
-    overlay.addEventListener('touchstart', unlockAudioByUserGesture, { once: false });
-    document.body.addEventListener('click', unlockAudioByUserGesture, { once: false });
-    document.body.addEventListener('touchstart', unlockAudioByUserGesture, { once: false });
-  } catch (e) { console.warn('[Audio] init overlay failed:', e); }
-}
-
-function maybeShowAudioUnlockOverlay() {
-  try {
-    const overlay = document.getElementById('audio-unlock');
-    if (!overlay) return;
-    if (isMobileUA()) {
-      overlay.classList.remove('hidden');
-      overlay.classList.add('show');
-      console.log('[Audio] overlay shown for mobile UA');
-    } else {
-      overlay.classList.add('hidden');
-      overlay.classList.remove('show');
-    }
-  } catch (e) { console.warn('[Audio] show overlay failed:', e); }
-}
-
-// === 靜音切換 ===
-function updateMuteButtonUI() {
-  try {
-    const btn = document.getElementById('audio-mute-toggle');
-    if (!btn) return;
-    const muted = !!window.__tmMuted;
-    btn.textContent = muted ? '音效：關' : '音效：開';
-    btn.classList.toggle('off', muted);
-  } catch (_) {}
-}
-
-function applyMuteState(muted) {
-  try {
-    window.__tmMuted = !!muted;
-    // 調整短音效 GainNode
-    try { if (window.__tmHearGain) window.__tmHearGain.gain.value = muted ? 0 : 1.0; } catch(_) {}
-    try { if (window.__tmThreatGain) window.__tmThreatGain.gain.value = muted ? 0 : 0.8; } catch(_) {}
-    try { if (window.__tmEndGain) window.__tmEndGain.gain.value = muted ? 0 : 1.1; } catch(_) {}
-    // mid-sound 透過 GainNode 或直接元素
-    try {
-      if (window.__tmMidGain) window.__tmMidGain.gain.value = muted ? 0 : 1.1;
-      const midEl = document.getElementById('mid-sound');
-      if (midEl) midEl.muted = muted;
-    } catch(_) {}
-    // HTMLAudioElement 備援路徑一併控制
-    ;['startup-sound','hear-sound','threat-sound','end-sound','machine-hum'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.muted = !!muted;
-    });
-    updateMuteButtonUI();
-  } catch (e) { console.warn('[Audio] apply mute failed:', e); }
-}
-
-function initMuteToggle() {
-  try {
-    const btn = document.getElementById('audio-mute-toggle');
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      applyMuteState(!window.__tmMuted);
-      if (!window.__tmMuted && typeof window.__tmResumeCtx === 'function') {
-        // 解除靜音後嘗試恢復 AudioContext（iOS）
-        window.__tmResumeCtx();
-      }
-    });
-    if (isMobileUA()) btn.classList.remove('hidden');
-    updateMuteButtonUI();
-  } catch (e) { console.warn('[Audio] init mute toggle failed:', e); }
-}
-
 async function playHear() {
   try {
     if (typeof window.__tmResumeCtx === 'function') await window.__tmResumeCtx();
@@ -379,7 +275,6 @@ async function playHear() {
     }
     const gain = window.__tmHearGain || ctx.createGain();
     gain.gain.value = 1.0;
-    if (window.__tmMuted) { try { gain.gain.value = 0; } catch(_) {} }
     window.__tmHearGain = gain;
     const src = ctx.createBufferSource();
     src.buffer = buf;
@@ -416,7 +311,6 @@ async function playThreat() {
     }
     const gain = window.__tmThreatGain || ctx.createGain();
     gain.gain.value = 0.8;
-    if (window.__tmMuted) { try { gain.gain.value = 0; } catch(_) {} }
     window.__tmThreatGain = gain;
     const src = ctx.createBufferSource();
     src.buffer = buf;
@@ -453,7 +347,6 @@ async function playEnd() {
     }
     const gain = window.__tmEndGain || ctx.createGain();
     gain.gain.value = 1.1;
-    if (window.__tmMuted) { try { gain.gain.value = 0; } catch(_) {} }
     window.__tmEndGain = gain;
     const src = ctx.createBufferSource();
     src.buffer = buf;
