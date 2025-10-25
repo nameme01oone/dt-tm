@@ -139,6 +139,60 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       } catch (_) {}
     }
+
+    // 預熱 mid-sound，降低 iOS 首次播放延遲
+    const mid = document.getElementById('mid-sound');
+    if (mid) {
+      try {
+        mid.muted = true;
+        mid.preload = 'auto';
+        const mp = mid.play();
+        if (mp && typeof mp.then === 'function') {
+          mp.then(() => {
+            setTimeout(() => {
+              try {
+                mid.pause();
+                mid.currentTime = 0;
+                mid.muted = false;
+              } catch (_) {}
+            }, 300);
+          }).catch(() => {});
+        }
+      } catch (_) {}
+    }
+
+    // 預熱 end-sound，降低 iOS 首次播放延遲
+    const end = document.getElementById('end-sound');
+    if (end) {
+      try {
+        end.muted = true;
+        end.preload = 'auto';
+        const ep = end.play();
+        if (ep && typeof ep.then === 'function') {
+          ep.then(() => {
+            setTimeout(() => {
+              try {
+                end.pause();
+                end.currentTime = 0;
+                end.muted = false;
+              } catch (_) {}
+            }, 300);
+          }).catch(() => {});
+        }
+      } catch (_) {}
+    }
+
+    // 使用者互動時建立/恢復全域 AudioContext，降低 iOS 延遲
+    const AC = window.AudioContext || window.webkitAudioContext;
+    function resumeGlobalCtx() {
+      try {
+        if (!AC) return;
+        const ctx = window.__tmCtx || new AC();
+        window.__tmCtx = ctx;
+        if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
+      } catch (_) {}
+    }
+    ['touchstart','click'].forEach(evt => document.addEventListener(evt, resumeGlobalCtx, { once: true }));
   }
 
   // 模擬開機延遲
@@ -270,23 +324,23 @@ function startMainSequence() {
             // 使用 Web Audio API 增益節點，將 mid-sound 提升到 1.1（超過 1.0）
             try {
               const AC = window.AudioContext || window.webkitAudioContext;
-              if (AC) {
-                if (!mid.__boostConnected) {
-                  const ctx = window.__tmMidCtx || new AC();
-                  window.__tmMidCtx = ctx;
-                  if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
-                  const src = ctx.createMediaElementSource(mid);
-                  const gain = ctx.createGain();
-                  gain.gain.value = 1.1;
-                  window.__tmMidGain = gain;
-                  src.connect(gain).connect(ctx.destination);
-                  mid.__boostConnected = true;
-                  console.log('[Mid] Gain boost connected: 1.1');
-                } else if (window.__tmMidGain) {
-                  window.__tmMidGain.gain.value = 1.1;
-                  console.log('[Mid] Gain boost updated: 1.1');
-                }
-              }
+           if (AC) {
+             const ctx = window.__tmCtx || new AC();
+             window.__tmCtx = ctx;
+             if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
+             if (!mid.__boostConnected) {
+               const src = ctx.createMediaElementSource(mid);
+               const gain = ctx.createGain();
+               gain.gain.value = 1.1;
+               window.__tmMidGain = gain;
+               src.connect(gain).connect(ctx.destination);
+               mid.__boostConnected = true;
+               console.log('[Mid] Gain boost connected: 1.1');
+             } else if (window.__tmMidGain) {
+               window.__tmMidGain.gain.value = 1.1;
+               console.log('[Mid] Gain boost updated: 1.1');
+             }
+           }
             } catch (e) {
               console.warn('[Mid] Gain boost failed:', e);
             }
@@ -550,20 +604,20 @@ function screenShutdown() {
         try {
           const AC = window.AudioContext || window.webkitAudioContext;
           if (AC) {
+            const ctx = window.__tmCtx || new AC();
+            window.__tmCtx = ctx;
+            if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
             if (!end.__boostConnected) {
-              const ctx = window.__tmEndCtx || new AC();
-              window.__tmEndCtx = ctx;
-              if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
               const src = ctx.createMediaElementSource(end);
               const gain = ctx.createGain();
               gain.gain.value = 1.1;
               window.__tmEndGain = gain;
               src.connect(gain).connect(ctx.destination);
               end.__boostConnected = true;
-              console.log('[End] Gain boost connected: 1.3');
+              console.log('[End] Gain boost connected: 1.1');
             } else if (window.__tmEndGain) {
-              window.__tmEndGain.gain.value = 1.3;
-              console.log('[End] Gain boost updated: 1.3');
+              window.__tmEndGain.gain.value = 1.1;
+              console.log('[End] Gain boost updated: 1.1');
             }
           }
         } catch (e) {
