@@ -21,6 +21,19 @@
         <div class="text">INITIALIZING...</div>
       </div>
     </div>
+
+    <!-- 音效解鎖覆蓋層（iOS/Android 需手勢解鎖） -->
+    <div id="audio-unlock" class="audio-unlock hidden" role="dialog" aria-live="polite" aria-label="音效解鎖提示">
+      <div class="audio-unlock-inner">
+        <div class="audio-unlock-title">點一下啟動音效</div>
+        <div class="audio-unlock-desc">iOS/Android 需要用戶手勢解鎖音訊</div>
+        <div class="audio-unlock-brand">THE MACHINE</div>
+      </div>
+    </div>
+
+    <!-- 音效靜音切換鍵（行動裝置顯示） -->
+    <button id="audio-mute-toggle" class="audio-mute-toggle hidden" type="button" aria-label="音效開關">音效：開</button>
+
     <audio id="startup-sound" loop preload="auto" playsinline webkit-playsinline>
   <source src="sound/samaritan_sound_effects_01.mp3" type="audio/mpeg">
 </audio>
