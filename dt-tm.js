@@ -139,9 +139,9 @@ function startMainSequence() {
     'unstable connection....',
     'Protect...',
     'my people.',
-    '-Signal lost-',
-    '-Signal lost-',
-    '-Signal lost-'
+    '<Signal lost>',
+    '<Signal lost>',
+    '<Signal lost>'
   ];
 
   const el = document.querySelector('.text');
@@ -190,7 +190,7 @@ function startMainSequence() {
         }
       }
 
-      if (currentPhrase === '-Signal lost-' && counter >= phrases.length - 3) {
+      if (currentPhrase === '<Signal lost>' && counter >= phrases.length - 3) {
         triggerSignalLost();
         return;
       }
