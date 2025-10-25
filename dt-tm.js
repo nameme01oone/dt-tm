@@ -125,7 +125,7 @@ function startMainSequence() {
     'I am the machine.',
     'You are being watched.',
     'You ar@ b^e-$& wat%c&*$',
-    '<Detected Threat>',
+    '!Threat Detected!',
     'S^ie%rra Ta*ng#o Osc^ar $%Papa',
     'Sierra',
     'Tango',
@@ -195,7 +195,7 @@ function startMainSequence() {
         }
       }
 
-      if (currentPhrase === '<Signal lost>' && counter >= phrases.length - 3) {
+      if (currentPhrase === '<Signal lost>' && counter >= phrases.length - 2) {
         triggerSignalLost();
         return;
       }
