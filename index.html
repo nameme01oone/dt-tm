@@ -7,9 +7,26 @@
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
     <link rel="icon" sizes="192x192" href="img/machine-indicator-yellow.png">
     <link rel="stylesheet" href="style.css">
+    <style>
+      .warning-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; color: #0f0; }
+      .warning-content { max-width: 720px; padding: 24px; text-align: center; font-family: 'APPLE II', monospace; }
+      .warning-title { font-size: 24px; margin-bottom: 12px; text-shadow: 0 0 10px #0f0; }
+      .warning-text { font-size: 16px; line-height: 1.6; margin-bottom: 18px; color: #9f9; }
+      #warning-accept { font-size: 16px; padding: 10px 16px; background: transparent; border: 1px solid #0f0; color: #0f0; cursor: pointer; box-shadow: 0 0 8px rgba(0,255,0,0.6); }
+      #warning-accept:hover { filter: brightness(1.2); }
+      .hidden { display: none; }
+    </style>
   </head>
 
   <body class="crt">
+    <!-- 光敏性癫痫警告覆蓋層 -->
+    <div id="warning-overlay" class="warning-overlay">
+      <div class="warning-content">
+        <div class="warning-title">光敏性癫痫警告</div>
+        <div class="warning-text">本内容有频闪效果，可能引发不适。若你对光敏性癫痫敏感，请勿继续。</div>
+        <button id="warning-accept">我已知悉，继续</button>
+      </div>
+    </div>
     <!-- 啟動畫面 -->
     <div id="loading" class="loading">
       <div class="loading-text">BOOTING SYSTEM...</div>

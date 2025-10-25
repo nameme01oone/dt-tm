@@ -218,15 +218,32 @@ window.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('focus', resumeGlobalCtx);
   }
 
-  // 模擬開機延遲
-  setTimeout(() => {
-    loadingScreen.classList.add('fade-out');
+  // 啟動流程（等待用戶確認警告後再進入載入畫面與主流程）
+  function beginBoot() {
+    // 模擬開機延遲
     setTimeout(() => {
-      loadingScreen.classList.add('hidden');
-      mainScreen.classList.remove('hidden');
-      startMainSequence();
-    }, 1000);
-  }, 2000);
+      loadingScreen.classList.add('fade-out');
+      setTimeout(() => {
+        loadingScreen.classList.add('hidden');
+        mainScreen.classList.remove('hidden');
+        startMainSequence();
+      }, 1000);
+    }, 2000);
+  }
+
+  const warnOverlay = document.getElementById('warning-overlay');
+  const warnAccept = document.getElementById('warning-accept');
+  if (warnOverlay && warnAccept) {
+    // 用戶確認後才進入載入與主流程，並嘗試恢復音訊上下文以解鎖播放
+    warnAccept.addEventListener('click', () => {
+      warnOverlay.classList.add('hidden');
+      beginBoot();
+      if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
+    }, { passive: true });
+  } else {
+    // 無警告覆蓋層時，直接進入原先流程
+    beginBoot();
+  }
 });
 
 // === 主畫面邏輯 ===
