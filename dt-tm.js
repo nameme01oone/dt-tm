@@ -178,7 +178,7 @@ function startMainSequence() {
     'RUN',
     'RUN',
     'RUN',
-    'Do not forget to',
+    'find my father',
     'protect',
     'my people.',
     '<Signal lost>',
@@ -257,6 +257,29 @@ function startMainSequence() {
         if (hear) {
           hear.currentTime = 0;
           hear.play().catch(err => console.error('Hear play failed:', err));
+        }
+      }
+
+      // === 在 "I am the machine." 顯示時播放 mid-sound，持續到異常字樣結束 ===
+      if (currentPhrase === 'I am the machine.') {
+        const mid = document.getElementById('mid-sound');
+        if (mid) {
+          try {
+            mid.currentTime = 0;
+            mid.loop = true;
+            mid.volume = 0.6;
+            const mp = mid.play();
+            if (mp && typeof mp.then === 'function') {
+              mp.then(() => console.log('[Mid] Started at I am the machine.'))
+                .catch(err => console.warn('[Mid] play failed:', err));
+            } else {
+              console.log('[Mid] Started at I am the machine.');
+            }
+          } catch (e) {
+            console.error('[Mid] error:', e);
+          }
+        } else {
+          console.warn('[Mid] element missing');
         }
       }
 
@@ -422,6 +445,26 @@ function startMainSequence() {
           })()
         : (currentPhrase === 'Can you hear me?' ? 2000 : (currentPhrase === 'RUN' ? 1500 : 1000));
       console.log('[Threat] Display duration (ms):', delay);
+
+      // 在異常字樣 "You ar@ b^e-$& wat%c&*$" 結束時同步停止 mid-sound
+      if (currentPhrase === 'You ar@ b^e-$& wat%c&*$') {
+        const mid = document.getElementById('mid-sound');
+        if (mid) {
+          try {
+            console.log('[Mid] Stop scheduled at glitch end:', delay, 'ms');
+            setTimeout(() => {
+              try {
+                if (!mid.paused) mid.pause();
+                mid.currentTime = 0;
+                console.log('[Mid] Stopped at glitch end');
+              } catch (e) {
+                console.error('[Mid] stop error:', e);
+              }
+            }, delay);
+          } catch (_) {}
+        }
+      }
+
       counter = (counter + 1) % phrases.length;
       setTimeout(next, delay);
     });
@@ -436,7 +479,7 @@ function triggerSignalLost() {
   const el = document.querySelector('.text');
 
   // 立即停止所有音效，避免 dt_tm_threat.mp3 在關機畫面出現
-  ['machine-hum', 'threat-sound', 'hear-sound', 'startup-sound'].forEach(id => {
+  ['machine-hum', 'threat-sound', 'hear-sound', 'startup-sound', 'mid-sound'].forEach(id => {
     const a = document.getElementById(id);
     if (a && !a.paused) {
       try {
@@ -482,7 +525,7 @@ function screenShutdown() {
         end.volume = 0.8;
         const ep = end.play();
         if (ep && typeof ep.then === 'function') {
-          ep.then(() => console.log('[End] Played at screenShutdown (delayed 3900ms)'))
+          ep.then(() => console.log('[End] Played at screenShutdown (delayed 3000ms)'))
             .catch(err => console.warn('[End] play failed:', err));
         }
       } else {
