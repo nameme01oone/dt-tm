@@ -193,8 +193,23 @@ function startMainSequence() {
   let modernEffectApplied = false;
 
   const next = () => {
-    fx.setText(phrases[counter]).then(() => {
-      const currentPhrase = phrases[counter];
+    const upcomingPhrase = phrases[counter];
+    // 在顯示 "Can you hear me?" 前預先停止啟動音
+    if (upcomingPhrase === 'Can you hear me?') {
+      const startup = document.getElementById('startup-sound');
+      if (startup) {
+        try {
+          if (!startup.paused) startup.pause();
+          startup.currentTime = 0;
+          startup.loop = false;
+          console.log('[Startup] Pre-stopped before "Can you hear me?"');
+        } catch (e) {
+          console.error('Startup sound pre-stop error:', e);
+        }
+      }
+    }
+    fx.setText(upcomingPhrase).then(() => {
+      const currentPhrase = upcomingPhrase;
 
       // === 當顯示 "!Threat Detected!" 播放電流聲，並讓文字快速閃爍兩次 ===
       if (currentPhrase === '!Threat Detected!') {
