@@ -119,26 +119,8 @@ window.addEventListener('DOMContentLoaded', () => {
       } catch (_) {}
     }
 
-    // 預熱 threat-sound，避免顯示時播放被阻擋
-    const threat = document.getElementById('threat-sound');
-    if (threat) {
-      try {
-        threat.muted = true;
-        threat.preload = 'auto';
-        const tp = threat.play();
-        if (tp && typeof tp.then === 'function') {
-          tp.then(() => {
-            setTimeout(() => {
-              try {
-                threat.pause();
-                threat.currentTime = 0;
-                threat.muted = false;
-              } catch (_) {}
-            }, 300);
-          }).catch(() => {});
-        }
-      } catch (_) {}
-    }
+    // 預熱短音效（hear/threat/end）為 BufferSource，降低 iOS 首次播放延遲
+    prewarmShortBuffers();
 
     // 預熱 mid-sound，降低 iOS 首次播放延遲
     const mid = document.getElementById('mid-sound');
@@ -161,26 +143,7 @@ window.addEventListener('DOMContentLoaded', () => {
       } catch (_) {}
     }
 
-    // 預熱 end-sound，降低 iOS 首次播放延遲
-    const end = document.getElementById('end-sound');
-    if (end) {
-      try {
-        end.muted = true;
-        end.preload = 'auto';
-        const ep = end.play();
-        if (ep && typeof ep.then === 'function') {
-          ep.then(() => {
-            setTimeout(() => {
-              try {
-                end.pause();
-                end.currentTime = 0;
-                end.muted = false;
-              } catch (_) {}
-            }, 300);
-          }).catch(() => {});
-        }
-      } catch (_) {}
-    }
+    // 已改為 BufferSource 預熱，移除 end-sound 元素預播
 
     // 使用者互動時建立/恢復全域 AudioContext，降低 iOS 延遲
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -192,7 +155,15 @@ window.addEventListener('DOMContentLoaded', () => {
         if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
       } catch (_) {}
     }
-    ['touchstart','click'].forEach(evt => document.addEventListener(evt, resumeGlobalCtx, { once: true }));
+    // 將恢復方法暴露為全域，供播放點位呼叫
+    window.__tmResumeCtx = resumeGlobalCtx;
+    // 持續在使用者互動時恢復（非一次性），降低 iOS 間歇性無聲
+    ['touchstart','click','touchend'].forEach(evt => document.addEventListener(evt, resumeGlobalCtx, { passive: true }));
+    // 頁面可見或回來時恢復 AudioContext
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') resumeGlobalCtx();
+    });
+    window.addEventListener('pageshow', resumeGlobalCtx);
   }
 
   // 模擬開機延遲
@@ -207,6 +178,123 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // === 主畫面邏輯 ===
+// === BufferSource utilities for short SFX (hear/threat/end) ===
+const AC = window.AudioContext || window.webkitAudioContext;
+
+function __tmGetCtx() {
+  try {
+    if (!AC) return null;
+    const ctx = window.__tmCtx || new AC();
+    window.__tmCtx = ctx;
+    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
+    return ctx;
+  } catch (_) { return null; }
+}
+
+async function __tmDecode(url) {
+  const ctx = __tmGetCtx();
+  if (!ctx) return null;
+  try {
+    const cache = window.__tmAudioCache || (window.__tmAudioCache = {});
+    if (cache[url]) return cache[url];
+    const res = await fetch(url);
+    const arr = await res.arrayBuffer();
+    const buf = await new Promise((resolve, reject) => ctx.decodeAudioData(arr, resolve, reject));
+    cache[url] = buf;
+    return buf;
+  } catch (e) {
+    console.warn('[BufferSource] decode failed for', url, e);
+    return null;
+  }
+}
+
+async function playHear() {
+  try {
+    if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
+    const ctx = __tmGetCtx(); if (!ctx) return;
+    const buf = window.__tmHearBuffer || await __tmDecode('sound/Root2_1_01.mp3');
+    window.__tmHearBuffer = buf;
+    if (!buf) return;
+    const gain = window.__tmHearGain || ctx.createGain();
+    gain.gain.value = 1.0;
+    window.__tmHearGain = gain;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(gain).connect(ctx.destination);
+    window.__tmHearSrc = src;
+    src.start(0);
+    src.onended = () => { try { src.disconnect(); } catch(_){} if (window.__tmHearSrc === src) window.__tmHearSrc = null; };
+    console.log('[Hear] Played via BufferSource');
+  } catch (e) {
+    console.error('[Hear] BufferSource error:', e);
+  }
+}
+
+async function playThreat() {
+  try {
+    if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
+    const ctx = __tmGetCtx(); if (!ctx) return;
+    const buf = window.__tmThreatBuffer || await __tmDecode('sound/dt_tm_threat.mp3');
+    window.__tmThreatBuffer = buf;
+    if (!buf) return;
+    const gain = window.__tmThreatGain || ctx.createGain();
+    gain.gain.value = 0.8;
+    window.__tmThreatGain = gain;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(gain).connect(ctx.destination);
+    window.__tmThreatSrc = src;
+    src.start(0);
+    src.onended = () => { try { src.disconnect(); } catch(_){} if (window.__tmThreatSrc === src) window.__tmThreatSrc = null; };
+    console.log('[Threat] Played via BufferSource');
+  } catch (e) {
+    console.error('[Threat] BufferSource error:', e);
+  }
+}
+
+function stopThreat() {
+  try {
+    const src = window.__tmThreatSrc;
+    if (src) { try { src.stop(); } catch(_){} try { src.disconnect(); } catch(_){} window.__tmThreatSrc = null; }
+  } catch (_) {}
+}
+
+async function playEnd() {
+  try {
+    if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
+    const ctx = __tmGetCtx(); if (!ctx) return;
+    const buf = window.__tmEndBuffer || await __tmDecode('sound/dt_tm_end.mp3');
+    window.__tmEndBuffer = buf;
+    if (!buf) return;
+    const gain = window.__tmEndGain || ctx.createGain();
+    gain.gain.value = 1.1;
+    window.__tmEndGain = gain;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(gain).connect(ctx.destination);
+    window.__tmEndSrc = src;
+    src.start(0);
+    src.onended = () => { try { src.disconnect(); } catch(_){} if (window.__tmEndSrc === src) window.__tmEndSrc = null; };
+    console.log('[End] Played via BufferSource');
+  } catch (e) {
+    console.error('[End] BufferSource error:', e);
+  }
+}
+
+async function prewarmShortBuffers() {
+  try {
+    if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
+    await Promise.all([
+      __tmDecode('sound/Root2_1_01.mp3').then(buf => { window.__tmHearBuffer = buf; }),
+      __tmDecode('sound/dt_tm_threat.mp3').then(buf => { window.__tmThreatBuffer = buf; }),
+      __tmDecode('sound/dt_tm_end.mp3').then(buf => { window.__tmEndBuffer = buf; })
+    ]);
+    console.log('[BufferSource] Short buffers prewarmed');
+  } catch (e) {
+    console.warn('[BufferSource] prewarm failed:', e);
+  }
+}
+
 function startMainSequence() {
   const phrases = [
     'loading....',
@@ -267,51 +355,26 @@ function startMainSequence() {
 
       // === 當顯示 "!Threat Detected!" 播放電流聲，並讓文字快速閃爍兩次 ===
       if (currentPhrase === '!Threat Detected!') {
-        // 播放威脅音效，與字樣顯示期間同步
-        const threat = document.getElementById('threat-sound');
-        if (threat) {
-          try {
-            threat.currentTime = 0;
-            threat.loop = false;
-            threat.volume = 0.8;
-            const p = threat.play();
-            if (p && typeof p.then === 'function') {
-              p.catch(err => console.warn('Threat sound play failed:', err));
-            }
-          } catch (e) {
-            console.error('Threat sound error:', e);
-          }
-        }
+        // 使用 BufferSource 播放威脅音效，與字樣顯示期間同步
+        try { playThreat(); } catch (e) { console.error('Threat BufferSource error:', e); }
         // 文字保持快速閃爍直到此字樣結束
         if (el) {
-          try {
-            el.classList.add('blink-rapid');
-          } catch (_) {}
+          try { el.classList.add('blink-rapid'); } catch (_) {}
         }
       } else {
-        // 非 Threat Detected 時，立即停止威脅音效（確保同步結束）
-        const threat = document.getElementById('threat-sound');
-        if (threat) {
-          try {
-            if (!threat.paused) threat.pause();
-            threat.currentTime = 0;
-          } catch (_) {}
-        }
+        // 非 Threat Detected 時，立即停止威脅音效（BufferSource）
+        try { stopThreat(); } catch (_) {}
         // 並移除快速閃爍效果
         if (el) {
           try { el.classList.remove('blink-rapid'); } catch (_) {}
         }
       }
 
-      // === 播放 "Can you hear me?" 音效 ===
+      // === 播放 "Can you hear me?" 音效（BufferSource） ===
       if (currentPhrase === 'Can you hear me?') {
         const audio = document.getElementById('startup-sound');
         if (audio) audio.volume = 0.15;
-        const hear = document.getElementById('hear-sound');
-        if (hear) {
-          hear.currentTime = 0;
-          hear.play().catch(err => console.error('Hear play failed:', err));
-        }
+        try { playHear(); } catch (e) { console.error('Hear BufferSource error:', e); }
       }
 
       // === 在 "I am the machine." 顯示時播放 mid-sound，持續到異常字樣結束 ===
@@ -515,9 +578,9 @@ function startMainSequence() {
 
       const delay = currentPhrase === '!Threat Detected!'
         ? (() => {
-            const a = document.getElementById('threat-sound');
-            const durMs = (a && Number.isFinite(a.duration) && a.duration > 0)
-              ? Math.ceil(a.duration * 1000)
+            const b = window.__tmThreatBuffer;
+            const durMs = (b && Number.isFinite(b.duration) && b.duration > 0)
+              ? Math.ceil(b.duration * 1000)
               : 1500;
             return durMs;
           })()
@@ -556,14 +619,16 @@ function triggerSignalLost() {
   const body = document.body;
   const el = document.querySelector('.text');
 
-  // 立即停止所有音效，避免 dt_tm_threat.mp3 在關機畫面出現
-  ['machine-hum', 'threat-sound', 'hear-sound', 'startup-sound', 'mid-sound'].forEach(id => {
+  // 立即停止所有音效，避免短音效在關機畫面持續
+  try {
+    if (window.__tmThreatSrc) { try { window.__tmThreatSrc.stop(); } catch(_){} try { window.__tmThreatSrc.disconnect(); } catch(_){} window.__tmThreatSrc = null; }
+    if (window.__tmHearSrc) { try { window.__tmHearSrc.stop(); } catch(_){} try { window.__tmHearSrc.disconnect(); } catch(_){} window.__tmHearSrc = null; }
+    if (window.__tmEndSrc) { try { window.__tmEndSrc.stop(); } catch(_){} try { window.__tmEndSrc.disconnect(); } catch(_){} window.__tmEndSrc = null; }
+  } catch (_) {}
+  ['machine-hum', 'startup-sound', 'mid-sound'].forEach(id => {
     const a = document.getElementById(id);
     if (a && !a.paused) {
-      try {
-        a.pause();
-        a.currentTime = 0;
-      } catch (_) {}
+      try { a.pause(); a.currentTime = 0; } catch (_) {}
     }
   });
 
@@ -592,49 +657,14 @@ function triggerSignalLost() {
 }
 
 function screenShutdown() {
-  // 設定延遲 2000ms 播放關機結束音效
+  // 設定延遲 2000ms 播放關機結束音效（BufferSource）
   console.log('[End] Scheduled with 2000ms delay');
   setTimeout(() => {
     try {
-      const end = document.getElementById('end-sound');
-      if (end) {
-        end.currentTime = 0;
-        end.loop = false;
-        // 使用 Web Audio API 增益節點，將音量提升到 1.1（超過 1.0）
-        try {
-          const AC = window.AudioContext || window.webkitAudioContext;
-          if (AC) {
-            const ctx = window.__tmCtx || new AC();
-            window.__tmCtx = ctx;
-            if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
-            if (!end.__boostConnected) {
-              const src = ctx.createMediaElementSource(end);
-              const gain = ctx.createGain();
-              gain.gain.value = 1.1;
-              window.__tmEndGain = gain;
-              src.connect(gain).connect(ctx.destination);
-              end.__boostConnected = true;
-              console.log('[End] Gain boost connected: 1.1');
-            } else if (window.__tmEndGain) {
-              window.__tmEndGain.gain.value = 1.1;
-              console.log('[End] Gain boost updated: 1.1');
-            }
-          }
-        } catch (e) {
-          console.warn('[End] Gain boost failed:', e);
-        }
-        // 將元素自身音量設定為 1.0，增益由 GainNode 控制
-        end.volume = 1.0;
-        const ep = end.play();
-        if (ep && typeof ep.then === 'function') {
-          ep.then(() => console.log('[End] Played at screenShutdown (delayed 2000ms)'))
-            .catch(err => console.warn('[End] play failed:', err));
-        }
-      } else {
-        console.warn('[End] element missing at screenShutdown');
-      }
+      playEnd();
+      console.log('[End] Played at screenShutdown (BufferSource, delayed 2000ms)');
     } catch (e) {
-      console.error('[End] error:', e);
+      console.error('[End] BufferSource error:', e);
     }
   }, 2000);
 
