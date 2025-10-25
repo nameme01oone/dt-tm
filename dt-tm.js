@@ -88,9 +88,10 @@ window.addEventListener('DOMContentLoaded', () => {
     audio.preload = 'auto';
     audio.play().then(() => {
       console.log('[Autoplay] muted start success');
-      // 保持靜音預播，不在此解除靜音；待覆蓋層點擊後再開始主序列與出聲
       setTimeout(() => {
-        try { audio.pause(); audio.currentTime = 0; } catch(_) {}
+        audio.muted = false;
+        audio.currentTime = 0;
+        audio.play().catch(err => console.warn('Unmuted play blocked:', err));
       }, 800);
     }).catch(err => {
       console.warn('[Autoplay] failed, using iOS hack');
@@ -205,94 +206,14 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // 模擬開機延遲
-  // 加入簡單的「點擊解鎖音訊」覆蓋層，首次互動後再開始主序列
-  function showAudioUnlockOverlay(startCb) {
-    try {
-      const overlay = document.createElement('div');
-      overlay.id = 'audio-unlock';
-      overlay.style.position = 'fixed';
-      overlay.style.inset = '0';
-      overlay.style.background = 'rgba(0,0,0,0.85)';
-      overlay.style.display = 'flex';
-      overlay.style.alignItems = 'center';
-      overlay.style.justifyContent = 'center';
-      overlay.style.zIndex = '9999';
-      overlay.style.cursor = 'pointer';
-      overlay.style.userSelect = 'none';
-
-      const msg = document.createElement('div');
-      msg.style.color = '#0f0';
-      msg.style.fontFamily = 'monospace';
-      msg.style.fontSize = '20px';
-      msg.style.textAlign = 'center';
-      msg.innerHTML = '點擊以啟用音訊<br/>Tap to enable audio';
-      overlay.appendChild(msg);
-      document.body.appendChild(overlay);
-
-      const once = async () => {
-        try {
-          // 停止可能的靜音預播（非 startup），避免覆蓋層前就出聲
-          ['machine-hum','mid-sound'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) { try { el.pause(); el.muted = false; } catch(_){} }
-          });
-          // 確保 AudioContext 已解鎖
-          if (typeof window.__tmResumeCtx === 'function') await window.__tmResumeCtx();
-          // 再次預熱短音效（若尚未成功）
-          try { await prewarmShortBuffers(); } catch(_) {}
-          // 在互動當下啟動 startup-sound（iOS 需要使用者手勢）
-          const startup = document.getElementById('startup-sound');
-          if (startup) {
-            try {
-              startup.muted = false;
-              startup.loop = true;
-              startup.currentTime = 0;
-              startup.volume = 0.7;
-              // 確保來源已載入
-              try { startup.load(); } catch(_) {}
-              // 使用 Web Audio 管線連接並提升穩定性
-              try {
-                const AC = window.AudioContext || window.webkitAudioContext;
-                if (AC) {
-                  const ctx = window.__tmCtx || new AC();
-                  window.__tmCtx = ctx;
-                  if (ctx.state === 'suspended') { try { await ctx.resume(); } catch(_){} }
-                  if (!startup.__connected) {
-                    const srcNode = ctx.createMediaElementSource(startup);
-                    const g = ctx.createGain();
-                    g.gain.value = 0.8;
-                    srcNode.connect(g).connect(ctx.destination);
-                    window.__tmStartupGain = g;
-                    startup.__connected = true;
-                  }
-                }
-              } catch(_) {}
-              await startup.play();
-              console.log('[Startup] started after audio unlock');
-            } catch (e) {
-              console.warn('[Startup] play failed after unlock:', e);
-            }
-          }
-        } catch(_) {}
-        try { overlay.remove(); } catch(_) {}
-        try { startCb && startCb(); } catch(_) {}
-        ['click','touchstart','pointerdown'].forEach(evt => overlay.removeEventListener(evt, once));
-      };
-      ['click','touchstart','pointerdown'].forEach(evt => overlay.addEventListener(evt, once, { once: true, passive: false }));
-    } catch (_) {}
-  }
-
-  // 在載入任何畫面前最先顯示覆蓋層；點擊後才開始載入與播放
-  showAudioUnlockOverlay(() => {
+  setTimeout(() => {
+    loadingScreen.classList.add('fade-out');
     setTimeout(() => {
-      loadingScreen.classList.add('fade-out');
-      setTimeout(() => {
-        loadingScreen.classList.add('hidden');
-        mainScreen.classList.remove('hidden');
-        startMainSequence();
-      }, 1000);
-    }, 2000);
-  });
+      loadingScreen.classList.add('hidden');
+      mainScreen.classList.remove('hidden');
+      startMainSequence();
+    }, 1000);
+  }, 2000);
 });
 
 // === 主畫面邏輯 ===
