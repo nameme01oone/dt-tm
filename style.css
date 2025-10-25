@@ -317,3 +317,35 @@ body {
 .blink-rapid {
   animation: blinkTwice 1000ms linear infinite;
 }
+
+/* RUN overlay spam */
+.run-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200; /* ensure above loading(1000), hack(900), monitor(1000) */
+  pointer-events: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: stretch;
+  align-items: stretch;
+  background: transparent;
+}
+
+.run-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'APPLE II', monospace;
+  color: #0f0;
+  text-shadow: 0 0 8px #0f0, 0 0 18px rgba(0,255,0,0.8);
+  opacity: 1;
+  animation: runJitter 600ms steps(6) infinite alternate;
+}
+
+@keyframes runJitter {
+  0% { transform: translate3d(0, 0, 0); opacity: 0.95; }
+  25% { transform: translate3d(-1px, 0, 0); opacity: 1; }
+  50% { transform: translate3d(1px, 0, 0); opacity: 0.9; }
+  75% { transform: translate3d(0, 1px, 0); opacity: 0.92; }
+  100% { transform: translate3d(0, -1px, 0); opacity: 0.96; }
+}

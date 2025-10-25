@@ -366,15 +366,61 @@ function startMainSequence() {
         }
       }
 
+      // RUN overlay spam effect: incremental fill across occurrences
+      if (currentPhrase === 'RUN') {
+        try {
+          // Track RUN occurrences for incremental coverage: 1/3, 2/3, 3/3
+          if (typeof window.__runCount !== 'number') window.__runCount = 0;
+          window.__runCount = Math.min(3, window.__runCount + 1);
+          const fraction = window.__runCount / 3; // 0.33, 0.66, 1.0
+
+          let run = document.getElementById('run-overlay');
+          if (!run) {
+            run = document.createElement('div');
+            run.id = 'run-overlay';
+            run.className = 'run-overlay';
+            document.body.appendChild(run);
+          }
+          // Ensure visible while RUN is active
+          run.style.display = 'flex';
+
+          const computed = window.getComputedStyle(el);
+          const fontSize = computed && parseInt(computed.fontSize, 10) ? parseInt(computed.fontSize, 10) : 28;
+          const cellW = Math.max(50, Math.floor(fontSize * 2.5));
+          const cellH = Math.max(24, Math.floor(fontSize * 1.45));
+          const cols = Math.ceil(window.innerWidth / cellW);
+          const rows = Math.ceil(window.innerHeight / cellH);
+          const total = cols * rows;
+          const target = Math.ceil(total * fraction);
+          const existing = run.childElementCount;
+          for (let i = existing; i < target; i++) {
+            const item = document.createElement('div');
+            item.className = 'run-item';
+            item.textContent = 'RUN';
+            item.style.width = cellW + 'px';
+            item.style.height = cellH + 'px';
+            run.appendChild(item);
+          }
+          console.log('[RUN] Count:', window.__runCount, 'fraction:', fraction.toFixed(2), 'filled target:', target + '/' + total);
+        } catch (e) {
+          console.error('[RUN] overlay error:', e);
+        }
+      } else {
+        try {
+          const run = document.getElementById('run-overlay');
+          if (run) run.style.display = 'none'; // keep for accumulation, hide when not RUN
+        } catch (_) {}
+      }
+
       const delay = currentPhrase === '!Threat Detected!'
         ? (() => {
             const a = document.getElementById('threat-sound');
             const durMs = (a && Number.isFinite(a.duration) && a.duration > 0)
               ? Math.ceil(a.duration * 1000)
-              : 1500; // fallback if metadata not loaded
+              : 1500;
             return durMs;
           })()
-        : (currentPhrase === 'Can you hear me?' ? 2000 : 1000);
+        : (currentPhrase === 'Can you hear me?' ? 2000 : (currentPhrase === 'RUN' ? 1500 : 1000));
       console.log('[Threat] Display duration (ms):', delay);
       counter = (counter + 1) % phrases.length;
       setTimeout(next, delay);
@@ -436,7 +482,7 @@ function screenShutdown() {
         end.volume = 0.8;
         const ep = end.play();
         if (ep && typeof ep.then === 'function') {
-          ep.then(() => console.log('[End] Played at screenShutdown (delayed 3500ms)'))
+          ep.then(() => console.log('[End] Played at screenShutdown (delayed 3900ms)'))
             .catch(err => console.warn('[End] play failed:', err));
         }
       } else {
