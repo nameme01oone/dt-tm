@@ -147,23 +147,62 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // 使用者互動時建立/恢復全域 AudioContext，降低 iOS 延遲
     const AC = window.AudioContext || window.webkitAudioContext;
-    function resumeGlobalCtx() {
+    async function resumeGlobalCtx() {
       try {
         if (!AC) return;
         const ctx = window.__tmCtx || new AC();
         window.__tmCtx = ctx;
-        if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
+        if (ctx.state !== 'running') {
+          try { await ctx.resume(); } catch (_) {}
+        }
+        // 用靜音 Buffer + Gain 透過當前 Context 解鎖音訊路徑
+        try {
+          const bs = ctx.createBufferSource();
+          const buf = ctx.createBuffer(1, 1, 22050);
+          const g = ctx.createGain();
+          g.gain.value = 0.0;
+          bs.buffer = buf;
+          bs.connect(g).connect(ctx.destination);
+          bs.start(ctx.currentTime + 0.01);
+          setTimeout(() => { try { bs.stop(); bs.disconnect(); g.disconnect(); } catch (_) {} }, 40);
+        } catch (_) {}
+    
+        // 額外使用 oscillator 靜音解鎖，提升 iOS 穩定性
+        try {
+          const osc = ctx.createOscillator();
+          const g2 = ctx.createGain();
+          g2.gain.value = 0.0;
+          osc.frequency.value = 440;
+          osc.connect(g2).connect(ctx.destination);
+          osc.start(ctx.currentTime + 0.02);
+          setTimeout(() => { try { osc.stop(); osc.disconnect(); g2.disconnect(); } catch (_) {} }, 60);
+        } catch (_) {}
+    
+        // 解鎖 HTMLAudioElement 播放路徑（靜音短播再停）
+        try {
+          ['startup-sound','hear-sound','threat-sound','end-sound'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const prevMuted = el.muted;
+            el.muted = true;
+            const p = el.play();
+            if (p && typeof p.then === 'function') {
+              p.then(() => { setTimeout(() => { try { el.pause(); el.muted = prevMuted; } catch(_){} }, 80); }).catch(()=>{});
+            }
+          });
+        } catch (_) {}
       } catch (_) {}
     }
     // 將恢復方法暴露為全域，供播放點位呼叫
     window.__tmResumeCtx = resumeGlobalCtx;
     // 持續在使用者互動時恢復（非一次性），降低 iOS 間歇性無聲
-    ['touchstart','click','touchend'].forEach(evt => document.addEventListener(evt, resumeGlobalCtx, { passive: true }));
+    ['touchstart','click','touchend','pointerdown','touchmove','keydown','keyup','mousedown','mouseup'].forEach(evt => document.addEventListener(evt, resumeGlobalCtx, { passive: true }));
     // 頁面可見或回來時恢復 AudioContext
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') resumeGlobalCtx();
     });
     window.addEventListener('pageshow', resumeGlobalCtx);
+    window.addEventListener('focus', resumeGlobalCtx);
   }
 
   // 模擬開機延遲
@@ -187,6 +226,17 @@ function __tmGetCtx() {
     const ctx = window.__tmCtx || new AC();
     window.__tmCtx = ctx;
     if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
+    // 嘗試用靜音 Buffer + Gain 解鎖 iOS 音訊路徑（避免掛起後無聲）
+    try {
+      const bs = ctx.createBufferSource();
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const g = ctx.createGain();
+      g.gain.value = 0.0;
+      bs.buffer = buf;
+      bs.connect(g).connect(ctx.destination);
+      bs.start(ctx.currentTime + 0.01);
+      setTimeout(() => { try { bs.stop(); bs.disconnect(); g.disconnect(); } catch (_) {} }, 20);
+    } catch (_) {}
     return ctx;
   } catch (_) { return null; }
 }
@@ -210,11 +260,19 @@ async function __tmDecode(url) {
 
 async function playHear() {
   try {
-    if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
-    const ctx = __tmGetCtx(); if (!ctx) return;
+    if (typeof window.__tmResumeCtx === 'function') await window.__tmResumeCtx();
+    const ctx = __tmGetCtx(); if (!ctx) { // 備援：改用 HTMLAudioElement
+      const el = document.getElementById('hear-sound');
+      if (el) { try { el.currentTime = 0; el.volume = 1.0; el.play().catch(()=>{}); console.warn('[Hear] Fallback to HTMLAudioElement'); } catch(_){} }
+      return;
+    }
     const buf = window.__tmHearBuffer || await __tmDecode('sound/Root2_1_01.mp3');
     window.__tmHearBuffer = buf;
-    if (!buf) return;
+    if (!buf) { // 備援：改用 HTMLAudioElement
+      const el = document.getElementById('hear-sound');
+      if (el) { try { el.currentTime = 0; el.volume = 1.0; el.play().catch(()=>{}); console.warn('[Hear] Fallback to HTMLAudioElement (no buffer)'); } catch(_){} }
+      return;
+    }
     const gain = window.__tmHearGain || ctx.createGain();
     gain.gain.value = 1.0;
     window.__tmHearGain = gain;
@@ -222,9 +280,15 @@ async function playHear() {
     src.buffer = buf;
     src.connect(gain).connect(ctx.destination);
     window.__tmHearSrc = src;
-    src.start(0);
-    src.onended = () => { try { src.disconnect(); } catch(_){} if (window.__tmHearSrc === src) window.__tmHearSrc = null; };
-    console.log('[Hear] Played via BufferSource');
+    try {
+      src.start(ctx.currentTime + 0.01);
+      src.onended = () => { try { src.disconnect(); } catch(_){} if (window.__tmHearSrc === src) window.__tmHearSrc = null; };
+      console.log('[Hear] Played via BufferSource');
+    } catch (e) {
+      console.warn('[Hear] BufferSource start failed, fallback to HTMLAudioElement:', e);
+      const el = document.getElementById('hear-sound');
+      if (el) { try { el.currentTime = 0; el.volume = 1.0; el.play().catch(()=>{}); } catch(_){} }
+    }
   } catch (e) {
     console.error('[Hear] BufferSource error:', e);
   }
@@ -232,11 +296,19 @@ async function playHear() {
 
 async function playThreat() {
   try {
-    if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
-    const ctx = __tmGetCtx(); if (!ctx) return;
+    if (typeof window.__tmResumeCtx === 'function') await window.__tmResumeCtx();
+    const ctx = __tmGetCtx(); if (!ctx) { // 備援：改用 HTMLAudioElement
+      const el = document.getElementById('threat-sound');
+      if (el) { try { el.currentTime = 0; el.volume = 0.8; el.play().catch(()=>{}); console.warn('[Threat] Fallback to HTMLAudioElement'); } catch(_){} }
+      return;
+    }
     const buf = window.__tmThreatBuffer || await __tmDecode('sound/dt_tm_threat.mp3');
     window.__tmThreatBuffer = buf;
-    if (!buf) return;
+    if (!buf) { // 備援：改用 HTMLAudioElement
+      const el = document.getElementById('threat-sound');
+      if (el) { try { el.currentTime = 0; el.volume = 0.8; el.play().catch(()=>{}); console.warn('[Threat] Fallback to HTMLAudioElement (no buffer)'); } catch(_){} }
+      return;
+    }
     const gain = window.__tmThreatGain || ctx.createGain();
     gain.gain.value = 0.8;
     window.__tmThreatGain = gain;
@@ -244,28 +316,35 @@ async function playThreat() {
     src.buffer = buf;
     src.connect(gain).connect(ctx.destination);
     window.__tmThreatSrc = src;
-    src.start(0);
-    src.onended = () => { try { src.disconnect(); } catch(_){} if (window.__tmThreatSrc === src) window.__tmThreatSrc = null; };
-    console.log('[Threat] Played via BufferSource');
+    try {
+      src.start(ctx.currentTime + 0.01);
+      src.onended = () => { try { src.disconnect(); } catch(_){} if (window.__tmThreatSrc === src) window.__tmThreatSrc = null; };
+      console.log('[Threat] Played via BufferSource');
+    } catch (e) {
+      console.warn('[Threat] BufferSource start failed, fallback to HTMLAudioElement:', e);
+      const el = document.getElementById('threat-sound');
+      if (el) { try { el.currentTime = 0; el.volume = 0.8; el.play().catch(()=>{}); } catch(_){} }
+    }
   } catch (e) {
     console.error('[Threat] BufferSource error:', e);
   }
 }
 
-function stopThreat() {
-  try {
-    const src = window.__tmThreatSrc;
-    if (src) { try { src.stop(); } catch(_){} try { src.disconnect(); } catch(_){} window.__tmThreatSrc = null; }
-  } catch (_) {}
-}
-
 async function playEnd() {
   try {
-    if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
-    const ctx = __tmGetCtx(); if (!ctx) return;
+    if (typeof window.__tmResumeCtx === 'function') await window.__tmResumeCtx();
+    const ctx = __tmGetCtx(); if (!ctx) { // 備援：改用 HTMLAudioElement（音量上限 1.0）
+      const el = document.getElementById('end-sound');
+      if (el) { try { el.currentTime = 0; el.volume = 1.0; el.play().catch(()=>{}); console.warn('[End] Fallback to HTMLAudioElement'); } catch(_){} }
+      return;
+    }
     const buf = window.__tmEndBuffer || await __tmDecode('sound/dt_tm_end.mp3');
     window.__tmEndBuffer = buf;
-    if (!buf) return;
+    if (!buf) { // 備援：改用 HTMLAudioElement
+      const el = document.getElementById('end-sound');
+      if (el) { try { el.currentTime = 0; el.volume = 1.0; el.play().catch(()=>{}); console.warn('[End] Fallback to HTMLAudioElement (no buffer)'); } catch(_){} }
+      return;
+    }
     const gain = window.__tmEndGain || ctx.createGain();
     gain.gain.value = 1.1;
     window.__tmEndGain = gain;
@@ -273,9 +352,15 @@ async function playEnd() {
     src.buffer = buf;
     src.connect(gain).connect(ctx.destination);
     window.__tmEndSrc = src;
-    src.start(0);
-    src.onended = () => { try { src.disconnect(); } catch(_){} if (window.__tmEndSrc === src) window.__tmEndSrc = null; };
-    console.log('[End] Played via BufferSource');
+    try {
+      src.start(ctx.currentTime + 0.01);
+      src.onended = () => { try { src.disconnect(); } catch(_){} if (window.__tmEndSrc === src) window.__tmEndSrc = null; };
+      console.log('[End] Played via BufferSource');
+    } catch (e) {
+      console.warn('[End] BufferSource start failed, fallback to HTMLAudioElement:', e);
+      const el = document.getElementById('end-sound');
+      if (el) { try { el.currentTime = 0; el.volume = 1.0; el.play().catch(()=>{}); } catch(_){} }
+    }
   } catch (e) {
     console.error('[End] BufferSource error:', e);
   }
