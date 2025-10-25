@@ -66,47 +66,84 @@ window.addEventListener('DOMContentLoaded', () => {
   const mainScreen = document.getElementById('main');
   const audio = document.getElementById('startup-sound');
 
-  // 進入頁面後嘗試立即自動播放
-  if (audio) {
-    const ua = navigator.userAgent.toLowerCase();
-     const isAndroid = /android/.test(ua);
-     const isHuawei = /huawei|honor/.test(ua) || (navigator.vendor && /huawei/i.test(navigator.vendor));
-     const prime = el => {
-       if (!el) return;
-       const warmupMs = (isAndroid || isHuawei) ? 500 : 300;
-       el.muted = true;
-       el.preload = 'auto';
-       try { el.load(); } catch (_) {}
-       const p = el.play();
-       if (p && typeof p.then === 'function') {
-         p.then(() => {
-           setTimeout(() => {
-             try {
-               el.pause();
-               el.currentTime = 0;
-               el.muted = false;
-             } catch (_) {}
-           }, warmupMs);
-         }).catch(() => {});
-       } else {
-         try {
-           setTimeout(() => {
-             try {
-               el.pause();
-               el.currentTime = 0;
-               el.muted = false;
-             } catch (_) {}
-           }, warmupMs);
-         } catch (_) {}
-       }
-     };
-    prime(audio);
+  // === iOS 自動播放解鎖機制 ===
+  function iosAutoPlayHack() {
+    if (!audio) return;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = ctx.createBufferSource();
+    const buf = ctx.createBuffer(1, 1, 22050);
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+    ctx.resume().then(() => {
+      console.log('[iOS Hack] Silent buffer unlocked');
+      audio.play().catch(err => console.warn('[iOS] autoplay blocked:', err));
+    });
   }
 
-  // 模擬開機延遲（3 秒）
+  // 靜音預播機制 + iOS 解鎖
+  if (audio) {
+    audio.muted = true;
+    audio.loop = true;
+    audio.preload = 'auto';
+    audio.play().then(() => {
+      console.log('[Autoplay] muted start success');
+      setTimeout(() => {
+        audio.muted = false;
+        audio.currentTime = 0;
+        audio.play().catch(err => console.warn('Unmuted play blocked:', err));
+      }, 800);
+    }).catch(err => {
+      console.warn('[Autoplay] failed, using iOS hack');
+      iosAutoPlayHack();
+    });
+
+    // 預熱 machine-hum，避免後續播放被瀏覽器阻擋
+    const hum = document.getElementById('machine-hum');
+    if (hum) {
+      try {
+        hum.muted = true;
+        hum.preload = 'auto';
+        const p = hum.play();
+        if (p && typeof p.then === 'function') {
+          p.then(() => {
+            setTimeout(() => {
+              try {
+                hum.pause();
+                hum.currentTime = 0;
+                hum.muted = false;
+              } catch (_) {}
+            }, 300);
+          }).catch(() => {});
+        }
+      } catch (_) {}
+    }
+
+    // 預熱 threat-sound，避免顯示時播放被阻擋
+    const threat = document.getElementById('threat-sound');
+    if (threat) {
+      try {
+        threat.muted = true;
+        threat.preload = 'auto';
+        const tp = threat.play();
+        if (tp && typeof tp.then === 'function') {
+          tp.then(() => {
+            setTimeout(() => {
+              try {
+                threat.pause();
+                threat.currentTime = 0;
+                threat.muted = false;
+              } catch (_) {}
+            }, 300);
+          }).catch(() => {});
+        }
+      } catch (_) {}
+    }
+  }
+
+  // 模擬開機延遲
   setTimeout(() => {
     loadingScreen.classList.add('fade-out');
-
     setTimeout(() => {
       loadingScreen.classList.add('hidden');
       mainScreen.classList.remove('hidden');
@@ -151,46 +188,97 @@ function startMainSequence() {
 
   const el = document.querySelector('.text');
   const fx = new TextScramble(el);
-  const audio = document.getElementById('startup-sound');
   let counter = 0;
-
-  if (audio) {
-    audio.play().catch(error => {
-      console.error("Audio autoplay failed:", error);
-    });
-  }
+  let signalLostCount = 0;
+  let modernEffectApplied = false;
 
   const next = () => {
     fx.setText(phrases[counter]).then(() => {
       const currentPhrase = phrases[counter];
 
-      if (counter === 2) {
-        if (audio) {
-          audio.pause();
+      // === 當顯示 "!Threat Detected!" 播放電流聲，並讓文字快速閃爍兩次 ===
+      if (currentPhrase === '!Threat Detected!') {
+        // 播放威脅音效，與字樣顯示期間同步
+        const threat = document.getElementById('threat-sound');
+        if (threat) {
+          try {
+            threat.currentTime = 0;
+            threat.loop = false;
+            threat.volume = 0.8;
+            const p = threat.play();
+            if (p && typeof p.then === 'function') {
+              p.catch(err => console.warn('Threat sound play failed:', err));
+            }
+          } catch (e) {
+            console.error('Threat sound error:', e);
+          }
+        }
+        // 文字保持快速閃爍直到此字樣結束
+        if (el) {
+          try {
+            el.classList.add('blink-rapid');
+          } catch (_) {}
+        }
+      } else {
+        // 非 Threat Detected 時，立即停止威脅音效（確保同步結束）
+        const threat = document.getElementById('threat-sound');
+        if (threat) {
+          try {
+            if (!threat.paused) threat.pause();
+            threat.currentTime = 0;
+          } catch (_) {}
+        }
+        // 並移除快速閃爍效果
+        if (el) {
+          try { el.classList.remove('blink-rapid'); } catch (_) {}
         }
       }
 
+      // === 播放 "Can you hear me?" 音效 ===
       if (currentPhrase === 'Can you hear me?') {
-        if (audio) {
+        const audio = document.getElementById('startup-sound');
+        if (audio) audio.volume = 0.15;
+        const hear = document.getElementById('hear-sound');
+        if (hear) {
+          hear.currentTime = 0;
+          hear.play().catch(err => console.error('Hear play failed:', err));
+        }
+      }
+
+      // 在 "S^ie%rra Ta*ng#o Osc^ar $%Papa" 顯示時播放 machine-hum
+      if (currentPhrase === 'S^ie%rra Ta*ng#o Osc^ar $%Papa') {
+        const hum = document.getElementById('machine-hum');
+        if (hum) {
           try {
-            audio.pause();
-            audio.src = 'Root2_1_01.mp3';
-            audio.currentTime = 0;
-            audio.loop = false;
-            audio.onended = () => {
-              try {
-                audio.pause();
-                audio.currentTime = 0;
-              } catch (e) {
-                console.error('Audio end cleanup failed:', e);
-              }
-            };
-            const playPromise = audio.play();
-            if (playPromise && typeof playPromise.catch === 'function') {
-              playPromise.catch(err => console.error('Audio play failed:', err));
+            hum.currentTime = 0;
+            hum.volume = 0.45;
+            hum.loop = true;
+            const p = hum.play();
+            if (p && typeof p.then === 'function') {
+              p.catch(err => console.warn('Hum play failed:', err));
             }
-          } catch (err) {
-            console.error('Audio switching failed:', err);
+            console.log('[Hum] Started at Sierra Tango Oscar Papa');
+          } catch (e) {
+            console.error('Hum error:', e);
+          }
+        }
+      }
+
+      // === <Signal lost> 第三次時淡出電流聲 ===
+      if (currentPhrase === '<Signal lost>') {
+        signalLostCount++;
+        if (signalLostCount === 3) {
+          const hum = document.getElementById('machine-hum');
+          if (hum) {
+            let fadeOut = setInterval(() => {
+              if (hum.volume > 0.05) {
+                hum.volume -= 0.05;
+              } else {
+                clearInterval(fadeOut);
+                hum.pause();
+                hum.currentTime = 0;
+              }
+            }, 100);
           }
         }
       }
@@ -200,7 +288,79 @@ function startMainSequence() {
         return;
       }
 
-      const delay = currentPhrase === 'Can you hear me?' ? 2000 : 1000;
+      // Hack overlay triple flash + RGB split + monitor overlay
+      if (currentPhrase === 'You ar@ b^e-$& wat%c&*$') {
+        let overlay = document.getElementById('hack-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'hack-overlay';
+          overlay.className = 'hack-overlay';
+          document.body.appendChild(overlay);
+          console.warn('[Hack] overlay element not found; created fallback overlay');
+        }
+        try {
+          console.log('[Hack] Trigger phrase detected:', currentPhrase);
+          overlay.classList.remove('flash');
+          void overlay.offsetWidth; // reflow
+          overlay.classList.add('flash');
+          console.log('[Hack] Overlay flash class applied');
+          const rgbSplit = document.createElement('div');
+          rgbSplit.className = 'rgb-split';
+          overlay.appendChild(rgbSplit);
+          rgbSplit.addEventListener('animationend', () => {
+            try { rgbSplit.remove(); console.log('[Hack] RGB split removed'); } catch (_) {}
+          }, { once: true });
+        } catch (e) {
+          console.error('[Hack] Overlay exception:', e);
+        }
+        try {
+          const ghost = document.createElement('div');
+          ghost.className = 'mirror-ghost play';
+          ghost.textContent = currentPhrase;
+          const computed = window.getComputedStyle(el);
+          if (computed && computed.fontSize) ghost.style.fontSize = computed.fontSize;
+          document.body.appendChild(ghost);
+          ghost.addEventListener('animationend', () => {
+            try { ghost.remove(); console.log('[Hack] Mirror ghost removed'); } catch (_) {}
+          }, { once: true });
+        } catch (_) {}
+        if (!modernEffectApplied) {
+          try {
+            document.body.classList.add('monitor-boost');
+            const monitor = document.createElement('div');
+            monitor.className = 'modern-monitor play';
+            const reticle = document.createElement('div');
+            reticle.className = 'reticle';
+            monitor.appendChild(reticle);
+            ['tl','tr','bl','br'].forEach(pos => {
+              const c = document.createElement('div');
+              c.className = 'monitor-corner ' + pos;
+              monitor.appendChild(c);
+            });
+            document.body.appendChild(monitor);
+            if (el) el.classList.add('monitor-sharp');
+            monitor.addEventListener('animationend', () => {
+              try { monitor.remove(); console.log('[Hack] Modern monitor overlay removed'); } catch (_) {}
+              try { document.body.classList.remove('monitor-boost'); } catch (_) {}
+              try { if (el) el.classList.remove('monitor-sharp'); } catch (_) {}
+            }, { once: true });
+          } catch (e) {
+            console.error('[Hack] Modern monitor exception:', e);
+          }
+          modernEffectApplied = true;
+        }
+      }
+
+      const delay = currentPhrase === '!Threat Detected!'
+        ? (() => {
+            const a = document.getElementById('threat-sound');
+            const durMs = (a && Number.isFinite(a.duration) && a.duration > 0)
+              ? Math.ceil(a.duration * 1000)
+              : 1500; // fallback if metadata not loaded
+            return durMs;
+          })()
+        : (currentPhrase === 'Can you hear me?' ? 2000 : 1000);
+      console.log('[Threat] Display duration (ms):', delay);
       counter = (counter + 1) % phrases.length;
       setTimeout(next, delay);
     });
@@ -209,7 +369,7 @@ function startMainSequence() {
   next();
 }
 
-// === Signal Lost + 關機動畫 ===
+// === Signal Lost + CRT 關機動畫 ===
 function triggerSignalLost() {
   const body = document.body;
   const el = document.querySelector('.text');
@@ -226,59 +386,35 @@ function triggerSignalLost() {
   }, 150);
 }
 
-// === CRT 熄滅動畫 ===
 function screenShutdown() {
   const crt = document.querySelector('.crt') || document.body;
-
   const overlay = document.createElement('div');
-  overlay.style.position = 'fixed';
-  overlay.style.top = 0;
-  overlay.style.left = 0;
-  overlay.style.width = '100%';
-  overlay.style.height = '100%';
-  overlay.style.background = '#000';
-  overlay.style.display = 'flex';
-  overlay.style.alignItems = 'center';
-  overlay.style.justifyContent = 'center';
-  overlay.style.color = '#0f0';
-  overlay.style.fontFamily = 'APPLE II, monospace';
-  overlay.style.fontSize = '24px';
-  overlay.style.transition = 'opacity 2s ease';
-  overlay.style.opacity = 0;
+  overlay.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #000; display: flex; align-items: center; justify-content: center;
+    color: #0f0; font-family: 'APPLE II', monospace; font-size: 24px;
+    transition: opacity 2s ease; opacity: 0;
+  `;
   overlay.textContent = '[ CONNECTION TERMINATED ]';
   crt.appendChild(overlay);
 
-  setTimeout(() => {
-    overlay.style.opacity = 1;
-  }, 300);
-
-  setTimeout(() => {
-    crtFadeToCRTLine();
-  }, 3000);
+  setTimeout(() => (overlay.style.opacity = 1), 300);
+  setTimeout(() => crtFadeToCRTLine(), 3000);
 }
 
-// === CRT 收縮線動畫 ===
 function crtFadeToCRTLine() {
   const line = document.createElement('div');
-  line.style.position = 'fixed';
-  line.style.top = '50%';
-  line.style.left = 0;
-  line.style.width = '100%';
-  line.style.height = '100%';
-  line.style.background = '#000';
-  line.style.zIndex = 9999;
-  line.style.overflow = 'hidden';
+  line.style.cssText = `
+    position: fixed; top: 50%; left: 0; width: 100%; height: 100%;
+    background: #000; z-index: 9999; overflow: hidden;
+  `;
   document.body.appendChild(line);
 
   const beam = document.createElement('div');
-  beam.style.position = 'absolute';
-  beam.style.top = '50%';
-  beam.style.left = 0;
-  beam.style.width = '100%';
-  beam.style.height = '2px';
-  beam.style.background = 'white';
-  beam.style.boxShadow = '0 0 15px white';
-  beam.style.transform = 'translateY(-50%)';
+  beam.style.cssText = `
+    position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
+    background: white; box-shadow: 0 0 15px white; transform: translateY(-50%);
+  `;
   line.appendChild(beam);
 
   beam.animate(

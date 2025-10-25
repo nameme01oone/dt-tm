@@ -102,3 +102,218 @@ body {
     opacity: 0.8;
   }
 }
+
+/* Threat Detected: blink twice effect */
+.blink-twice {
+  animation: blinkTwice 500ms linear 1 both;
+}
+
+@keyframes blinkTwice {
+  0% { opacity: 1; }
+  20% { opacity: 0; }
+  35% { opacity: 1; }
+  55% { opacity: 0; }
+  70% { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+.hack-overlay.flash {
+  background: rgba(255,255,255,0.95);
+  animation: overlayFlashThrice 600ms linear 1 both;
+}
+
+@keyframes overlayFlashTwice {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  35% { opacity: 0; }
+  55% { opacity: 1; }
+  70% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes overlayFlashThrice {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  30% { opacity: 0; }
+  45% { opacity: 1; }
+  60% { opacity: 0; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.hack-overlay.flash::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 3px 3px;
+  mix-blend-mode: overlay;
+  opacity: 0;
+  animation: grain 600ms steps(10) 1 both;
+}
+
+.hack-overlay.flash::after {
+  animation: scanJitter 600ms steps(6) 1 both;
+}
+
+.rgb-split {
+  animation: rgbShift 600ms steps(6) 1 both;
+}
+
+/* Hack overlay base styling */
+.hack-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(closest-corner at 50% 50%, rgba(255,255,255,0.18), rgba(255,255,255,0) 60%),
+              radial-gradient(farthest-side at 50% 50%, rgba(255,255,255,0.08), rgba(255,255,255,0) 75%);
+  box-shadow: inset 0 0 120px rgba(255,255,255,0.25);
+  backdrop-filter: brightness(1.08) contrast(1.06) saturate(1.05) blur(0.6px);
+  will-change: opacity, transform, filter;
+}
+
+.hack-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.03) 0px,
+    rgba(255,255,255,0.03) 1px,
+    transparent 2px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+  opacity: 0;
+}
+
+@keyframes grain {
+  0% { opacity: 0.35; transform: translate3d(0,0,0); }
+  15% { opacity: 0.6; transform: translate3d(-1px,0,0); }
+  30% { opacity: 0.45; transform: translate3d(1px,0,0); }
+  45% { opacity: 0.7; transform: translate3d(0,1px,0); }
+  60% { opacity: 0.5; transform: translate3d(0,-1px,0); }
+  75% { opacity: 0.8; transform: translate3d(0,0,0); }
+  100% { opacity: 0; transform: translate3d(0,0,0); }
+}
+
+@keyframes scanJitter {
+  0%, 10% { opacity: 0.25; transform: translate3d(0, -1px, 0); }
+  20%, 30% { opacity: 0.4; transform: translate3d(0, 1px, 0); }
+  40%, 50% { opacity: 0.35; transform: translate3d(0, -1px, 0); }
+  60%, 70% { opacity: 0.5; transform: translate3d(0, 1px, 0); }
+  80% { opacity: 0.3; transform: translate3d(0, 0, 0); }
+  100% { opacity: 0; transform: translate3d(0, 0, 0); }
+}
+
+/* RGB split base styling */
+.rgb-split {
+  position: fixed;
+  inset: 0;
+  z-index: 905;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background:
+    linear-gradient(to right, rgba(255,0,0,0.18), rgba(255,0,0,0)) 0 0 / 100% 100% no-repeat,
+    linear-gradient(to left, rgba(0,255,255,0.18), rgba(0,255,255,0)) 0 0 / 100% 100% no-repeat;
+  filter: blur(0.8px);
+  will-change: transform, opacity, filter;
+}
+
+@keyframes rgbShift {
+  0% { transform: translate3d(0, 0, 0); opacity: 0.8; }
+  25% { transform: translate3d(-2px, 0, 0); opacity: 1; }
+  50% { transform: translate3d(2px, 0, 0); opacity: 0.95; }
+  75% { transform: translate3d(-1px, 0, 0); opacity: 0.9; }
+  100% { transform: translate3d(0, 0, 0); opacity: 0; }
+}
+
+/* Mirror ghost styling */
+.mirror-ghost {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #0f0;
+  pointer-events: none;
+  z-index: 910;
+  mix-blend-mode: multiply;
+  text-shadow:
+    2px 0 0 rgba(255, 0, 0, 0.6),
+    -2px 0 0 rgba(0, 255, 255, 0.6),
+    0 0 2px #000;
+  opacity: 0;
+}
+
+.mirror-ghost.play {
+  animation: ghostFlick 600ms ease-out 1 both;
+}
+
+@keyframes ghostFlick {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+  10% { opacity: 0.9; transform: translate(calc(-50% - 2px), calc(-50% - 1px)) scale(1.02); }
+  40% { opacity: 0.7; transform: translate(calc(-50% + 3px), calc(-50% + 2px)) scale(0.98); }
+  70% { opacity: 0.5; transform: translate(calc(-50% - 2px), calc(-50% + 1px)) scale(1.01); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* One-time modern monitor overlay */
+.monitor-boost {
+  filter: contrast(1.18) brightness(1.1) saturate(1.1);
+}
+
+.modern-monitor {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05), rgba(255,255,255,0) 60%);
+  backdrop-filter: contrast(1.2) saturate(1.15) brightness(1.1) blur(1px);
+  animation: monitorPulse 600ms ease-out 1 both;
+}
+
+.reticle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 80px;
+  height: 80px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 0 12px rgba(255,255,255,0.15);
+}
+
+.monitor-corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.monitor-corner.tl { top: 10px; left: 10px; }
+.monitor-corner.tr { top: 10px; right: 10px; }
+.monitor-corner.bl { bottom: 10px; left: 10px; }
+.monitor-corner.br { bottom: 10px; right: 10px; }
+
+.text.monitor-sharp {
+  text-shadow: 0 0 2px #0f0, 0 0 6px rgba(0,255,0,0.4);
+  filter: contrast(1.15);
+}
+
+@keyframes monitorPulse {
+  0% { opacity: 0; }
+  20% { opacity: 0.4; }
+  40% { opacity: 0.6; }
+  60% { opacity: 0.5; }
+  80% { opacity: 0.3; }
+  100% { opacity: 0; }
+}
+
+/* Rapid blink loop for Threat Detected */
+.blink-rapid {
+  animation: blinkTwice 1000ms linear infinite;
+}
