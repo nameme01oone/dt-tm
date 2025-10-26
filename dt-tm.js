@@ -387,7 +387,7 @@ async function playHear() {
       return;
     }
     const gain = window.__tmHearGain || ctx.createGain();
-    gain.gain.value = 1.0;
+    gain.gain.value = 1.35;
     window.__tmHearGain = gain;
     const src = ctx.createBufferSource();
     src.buffer = buf;
@@ -598,8 +598,15 @@ function startMainSequence() {
 
       // === 播放 "Can you hear me?" 音效（BufferSource） ===
       if (currentPhrase === 'Can you hear me?') {
-        const audio = document.getElementById('startup-sound');
-        if (audio) audio.volume = 0.15;
+        const startup = document.getElementById('startup-sound');
+        if (startup) {
+          try {
+            if (!startup.paused) startup.pause();
+            startup.currentTime = 0;
+            startup.loop = false;
+            startup.volume = 0.0;
+          } catch (_) {}
+        }
         try { playHear(); } catch (e) { console.error('Hear BufferSource error:', e); }
       }
 
