@@ -28,12 +28,16 @@ class TextScramble {
   update() {
     let output = '';
     let complete = 0;
+    const newly = [];
 
     for (let i = 0, n = this.queue.length; i < n; i++) {
       let { from, to, start, end, char } = this.queue[i];
       if (this.frame >= end) {
         complete++;
-        output += to;
+        const isNew = !this.queue[i].__done;
+        this.queue[i].__done = true;
+        output += `<span class="final-letter" data-idx="${i}">${to}</span>`;
+        if (isNew) newly.push({ idx: i, char: to });
       } else if (this.frame >= start) {
         if (!char || Math.random() < 0.28) {
           char = this.randomChar();
@@ -46,6 +50,15 @@ class TextScramble {
     }
 
     this.el.innerHTML = output;
+
+    // 逐字完成時觸發殘影
+    try {
+      if (newly.length && window.__ghostMode) {
+        newly.forEach(({ idx, char }) => {
+          try { spawnTypingGhost(this.el, idx, char); } catch (_) {}
+        });
+      }
+    } catch (_) {}
 
     if (complete === this.queue.length) {
       this.resolve();
@@ -467,9 +480,35 @@ function startMainSequence() {
       }
     }
     try { hideStopOverlayImmediate(); } catch (_) {}
+    try { hideStopFullImmediate(); } catch (_) {}
+    try { hideStopWhiteFlashImmediate(); } catch (_) {}
+    // 啟用指定詞的打字殘影模式
+    try {
+      const ghostWords = new Set(['S^ie%rra', 'Ta*ng#o', 'Osc^ar', '$%Papa']);
+      window.__ghostMode = ghostWords.has(upcomingPhrase);
+      const el = document.querySelector('.text');
+      if (el) {
+        const computed = window.getComputedStyle(el);
+        window.__ghostColor = computed && computed.color ? computed.color : '#0f0';
+      }
+    } catch (_) {}
     fx.setText(upcomingPhrase).then(() => {
       const currentPhrase = upcomingPhrase;
-
+      // STOP 全屏放大 + 一次閃爍 + 白閃底色
+      if (currentPhrase === 'S T O P') {
+        try {
+          const elText = document.querySelector('.text');
+          if (elText) {
+            elText.classList.remove('blink-once');
+            void elText.offsetWidth; // reflow
+            elText.classList.add('blink-once');
+            elText.addEventListener('animationend', () => {
+              try { elText.classList.remove('blink-once'); } catch (_) {}
+            }, { once: true });
+          }
+          triggerStopFull(currentPhrase);
+        } catch (e) { console.error('[STOP] full-screen trigger error:', e); }
+      }
       // === 當顯示 "!Threat Detected!" 播放電流聲，並讓文字快速閃爍兩次 ===
       if (currentPhrase === '!Threat Detected!') {
         // 使用 BufferSource 播放威脅音效，與字樣顯示期間同步
@@ -707,7 +746,7 @@ function startMainSequence() {
               : 1500;
             return durMs;
           })()
-        : (currentPhrase === 'Can you hear me?' ? 2000 : (currentPhrase === 'RUN' ? 1500 : 1000));
+        : (currentPhrase === 'Can you hear me?' ? 2000 : (currentPhrase === 'RUN' ? 1500 : (currentPhrase === 'S T O P' ? 1500 : 1000)));
       console.log('[Threat] Display duration (ms):', delay);
 
       // 在異常字樣 "You ar@ b^e-$& wat%c&*$" 結束時同步停止 mid-sound
@@ -730,7 +769,10 @@ function startMainSequence() {
       }
 
       counter = (counter + 1) % phrases.length;
-      setTimeout(next, delay);
+      setTimeout(() => {
+        try { window.__ghostMode = false; } catch (_) {}
+        next();
+      }, delay);
     });
   };
 
@@ -919,6 +961,162 @@ function hideStopOverlayImmediate() {
       overlay.style.display = 'none';
       overlay.innerHTML = '';
       try { overlay.dataset.runToken = ''; } catch (_) {}
+    }
+  } catch (_) {}
+}
+
+// 每個已完成字母的殘影生成
+function spawnTypingGhost(textEl, idx, char) {
+  try {
+    const span = textEl.querySelector(`span.final-letter[data-idx="${idx}"]`);
+    if (!span) return;
+    const rect = span.getBoundingClientRect();
+    const computed = window.getComputedStyle(textEl);
+    const fontSize = computed && parseInt(computed.fontSize, 10) ? parseInt(computed.fontSize, 10) : 28;
+    const color = (window.__ghostColor || computed.color || '#0f0');
+
+    const clones = 2;
+    for (let k = 0; k < clones; k++) {
+      const ghost = document.createElement('div');
+      ghost.className = 'type-ghost play';
+      ghost.textContent = char;
+      ghost.setAttribute('data-text', char);
+      const jitterX = (Math.random() < 0.5 ? -1 : 1) * 0.5;
+      const jitterY = (Math.random() < 0.5 ? -1 : 1) * 0.5;
+      ghost.style.left = (rect.left + rect.width / 2 + dx) + 'px';
+      ghost.style.top = (rect.top + rect.height / 2 + dy) + 'px';
+      ghost.style.fontSize = fontSize + 'px';
+      ghost.style.color = color;
+      try { ghost.style.textShadow = `0 0 8px ${color}, 0 0 18px ${color}`; } catch (_) {}
+      document.body.appendChild(ghost);
+      ghost.addEventListener('animationend', () => { try { ghost.remove(); } catch (_) {} }, { once: true });
+    }
+  } catch (e) {
+    console.error('[Ghost] spawn error:', e);
+  }
+}
+
+function spawnTypingGhost(textEl, idx, char) {
+  try {
+    const span = textEl.querySelector(`span.final-letter[data-idx="${idx}"]`);
+    if (!span) return;
+    const rect = span.getBoundingClientRect();
+    const computed = window.getComputedStyle(textEl);
+    const fontSize = computed && parseInt(computed.fontSize, 10) ? parseInt(computed.fontSize, 10) : 28;
+    const color = (window.__ghostColor || computed.color || '#0f0');
+
+    const offsets = [
+      { dx: -2, dy: -1 },
+      { dx: 2, dy: 0 },
+      { dx: -1, dy: 2 },
+      { dx: 1, dy: -2 }
+    ];
+
+    offsets.forEach((o) => {
+      const ghost = document.createElement('div');
+      ghost.className = 'type-ghost play';
+      ghost.textContent = char;
+      ghost.setAttribute('data-text', char);
+      const jitterX = (Math.random() < 0.5 ? -1 : 1) * 0.5;
+      const jitterY = (Math.random() < 0.5 ? -1 : 1) * 0.5;
+      ghost.style.left = (rect.left + rect.width / 2 + o.dx + jitterX) + 'px';
+      ghost.style.top = (rect.top + rect.height / 2 + o.dy + jitterY) + 'px';
+      ghost.style.fontSize = fontSize + 'px';
+      ghost.style.color = color;
+      ghost.style.textShadow = `0 0 10px ${color}, 0 0 24px ${color}, 0 0 40px ${color}`;
+      document.body.appendChild(ghost);
+      ghost.addEventListener('animationend', () => { try { ghost.remove(); } catch (_) {} }, { once: true });
+    });
+  } catch (e) {
+    console.error('[Ghost] spawn error:', e);
+  }
+}
+
+
+function triggerStopFull(word) {
+  try {
+    // 一次白閃底色
+    try { triggerStopWhiteFlash(); } catch (_) {}
+
+    let overlay = document.getElementById('stop-fullscreen');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'stop-fullscreen';
+      overlay.className = 'stop-fullscreen';
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = '';
+    try { if (window.__stopFullTimer) { clearTimeout(window.__stopFullTimer); window.__stopFullTimer = null; } } catch (_) {}
+    const runToken = Date.now() + '_' + Math.random().toString(36).slice(2);
+    overlay.dataset.runToken = runToken;
+    const el = document.querySelector('.text');
+    const computed = el ? window.getComputedStyle(el) : null;
+    const color = computed && computed.color ? computed.color : '#0f0';
+    const fontSize = computed && computed.fontSize ? computed.fontSize : '28px';
+
+    const wordEl = document.createElement('div');
+    wordEl.className = 'stop-full-word play';
+    wordEl.textContent = word;
+    wordEl.style.color = color;
+    wordEl.style.fontSize = fontSize;
+    // 更強烈的光暈
+    try { wordEl.style.textShadow = `0 0 12px ${color}, 0 0 32px ${color}, 0 0 60px ${color}, 0 0 84px ${color}`; } catch (_) {}
+    // 使用強化版的放大動畫 + 脈衝光暈
+    try { wordEl.style.animation = 'stopFullExpandWarn 1000ms ease-out 1 forwards, stopGlowPulse 620ms ease-out 1 forwards'; } catch (_) {}
+    overlay.appendChild(wordEl);
+    overlay.style.display = 'flex';
+
+    wordEl.addEventListener('animationend', () => {
+      try {
+        if (overlay.dataset.runToken !== runToken) return;
+        overlay.style.display = 'none';
+        overlay.innerHTML = '';
+      } catch (_) {}
+    }, { once: true });
+
+    window.__stopFullTimer = setTimeout(() => {
+      try {
+        if (overlay.dataset.runToken !== runToken) return;
+        overlay.style.display = 'none';
+        overlay.innerHTML = '';
+      } catch (_) {}
+    }, 1300);
+  } catch (e) {
+    console.error('[STOP FULL] overlay error:', e);
+  }
+}
+
+// 一次白閃底色 overlay
+function triggerStopWhiteFlash() {
+  try {
+    let flash = document.getElementById('stop-white-flash');
+    if (!flash) {
+      flash = document.createElement('div');
+      flash.id = 'stop-white-flash';
+      flash.className = 'stop-white-flash';
+      document.body.appendChild(flash);
+    }
+    flash.classList.remove('play');
+    void flash.offsetWidth; // reflow
+    flash.classList.add('play');
+    flash.style.display = 'block';
+    flash.addEventListener('animationend', () => {
+      try { flash.style.display = 'none'; } catch (_) {}
+    }, { once: true });
+    window.__stopWhiteFlashTimer = setTimeout(() => {
+      try { flash.style.display = 'none'; } catch (_) {}
+    }, 240);
+  } catch (e) {
+    console.error('[STOP WHITE FLASH] overlay error:', e);
+  }
+}
+
+function hideStopWhiteFlashImmediate() {
+  try {
+    const flash = document.getElementById('stop-white-flash');
+    try { if (window.__stopWhiteFlashTimer) { clearTimeout(window.__stopWhiteFlashTimer); window.__stopWhiteFlashTimer = null; } } catch (_) {}
+    if (flash) {
+      flash.style.display = 'none';
     }
   } catch (_) {}
 }

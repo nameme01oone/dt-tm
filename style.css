@@ -381,3 +381,143 @@ body {
   55% { transform: translate3d(-50%, -50%, 0) scale(1.6); letter-spacing: 1px; }
   100% { opacity: 1; transform: translate3d(-50%, -50%, 0) scale(2.1); letter-spacing: 2px; }
 }
+
+/* Typing ghost per-letter overlay */
+.type-ghost {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 915;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0;
+  filter: saturate(1.15) contrast(1.06);
+  text-shadow: 0 0 10px #0f0, 0 0 24px rgba(0,255,0,0.95), 2px 0 0 rgba(255, 0, 0, 0.35), -2px 0 0 rgba(0, 255, 255, 0.35);
+}
+
+.type-ghost.play {
+  animation: typeGhost 680ms ease-out forwards;
+}
+
+@keyframes typeGhost {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.96); filter: blur(0.4px); }
+  12% { opacity: 1; transform: translate(calc(-50% - 1px), calc(-50% - 1px)) scale(1.0); }
+  45% { opacity: 0.8; transform: translate(calc(-50% + 2px), calc(-50% + 1px)) scale(1.02); }
+  75% { opacity: 0.6; transform: translate(calc(-50% - 2px), calc(-50%)) scale(1.0); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.0); }
+}
+.type-ghost::before,
+.type-ghost::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  opacity: 0.65;
+  text-shadow: none;
+  filter: blur(0.2px);
+}
+.type-ghost::before {
+  color: rgba(255, 0, 0, 0.42);
+  animation: ghostRGBShift 680ms ease-out forwards;
+}
+.type-ghost::after {
+  color: rgba(0, 255, 255, 0.42);
+  animation: ghostRGBShift 680ms ease-out forwards reverse;
+}
+
+@keyframes ghostRGBShift {
+  0% { transform: translate(0, 0); opacity: 0.8; }
+  25% { transform: translate(-1px, 0.5px); opacity: 0.9; }
+  50% { transform: translate(1px, -0.5px); opacity: 0.85; }
+  75% { transform: translate(-0.5px, 0px); opacity: 0.75; }
+  100% { transform: translate(0, 0); opacity: 0; }
+}
+
+/* One-time blink utility */
+.blink-once {
+  animation: blinkOnce 320ms linear 1 both;
+}
+@keyframes blinkOnce {
+  0% { opacity: 1; }
+  40% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* STOP full-screen expand overlay */
+.stop-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1320;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+.stop-full-word {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  font-family: 'APPLE II', monospace;
+  color: #0f0;
+  text-shadow: 0 0 10px #0f0, 0 0 24px rgba(0,255,0,0.95), 0 0 40px rgba(0,255,0,0.95);
+  opacity: 0;
+  mix-blend-mode: screen;
+  will-change: transform, opacity, letter-spacing, filter;
+}
+.stop-full-word.play {
+  animation: stopFullExpand 1000ms ease-out 1 forwards;
+}
+@keyframes stopFullExpand {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); filter: blur(0.5px); letter-spacing: 0; }
+  12% { opacity: 1; transform: translate(-50%, -50%) scale(1.0); filter: blur(0); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(6.0); letter-spacing: 1px; }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(10.0); letter-spacing: 2px; }
+}
+
+/* STOP white flash base */
+.stop-white-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 1315; /* behind stop-fullscreen (1320) */
+  pointer-events: none;
+  background: #fff;
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+.stop-white-flash.play {
+  animation: stopWhiteFlash 180ms ease-out 1 forwards;
+}
+@keyframes stopWhiteFlash {
+  0% { opacity: 0; }
+  40% { opacity: 0.65; }
+  100% { opacity: 0; }
+}
+
+/* Stronger warning expand with mid-phase blur */
+@keyframes stopFullExpandWarn {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); filter: blur(1px); letter-spacing: 0; }
+  12% { opacity: 1; transform: translate(-50%, -50%) scale(1.0); filter: blur(0.2px); }
+  40% { filter: blur(0.6px); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(6.0); letter-spacing: 1px; filter: blur(0.3px); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(10.0); letter-spacing: 2px; filter: blur(0.2px); }
+}
+
+/* Pulsing glow for STOP word */
+@keyframes stopGlowPulse {
+  0% {
+    text-shadow: 0 0 10px currentColor, 0 0 24px currentColor, 0 0 40px currentColor;
+  }
+  18% {
+    text-shadow: 0 0 24px currentColor, 0 0 60px currentColor, 0 0 96px currentColor;
+  }
+  50% {
+    text-shadow: 0 0 16px currentColor, 0 0 48px currentColor, 0 0 80px currentColor;
+  }
+  100% {
+    text-shadow: 0 0 12px currentColor, 0 0 32px currentColor, 0 0 60px currentColor;
+  }
+}
