@@ -229,6 +229,31 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     window.addEventListener('pageshow', resumeGlobalCtx);
     window.addEventListener('focus', resumeGlobalCtx);
+
+    // 一次性確保初始音效在首次手勢後開始（iOS）
+    function ensureInitialAudio() {
+      try {
+        if (!audio) return;
+        if (window.__tmAudioEnsured) return;
+        window.__tmAudioEnsured = true;
+        audio.muted = false;
+        audio.loop = true;
+        audio.volume = 1.0;
+        const p = audio.play();
+        if (p && typeof p.then === 'function') {
+          p.then(() => console.log('[Startup] ensured play after user gesture'))
+           .catch(err => console.warn('[Startup] ensure play blocked:', err));
+        }
+      } catch (_) {}
+    }
+    ['touchstart','click','pointerdown','keydown','mousedown'].forEach(evt => {
+      document.addEventListener(evt, () => {
+        try {
+          if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
+          ensureInitialAudio();
+        } catch (_) {}
+      }, { once: true, passive: true });
+    });
   }
 
   // 啟動流程（等待用戶確認警告後再進入載入畫面與主流程）
@@ -252,6 +277,10 @@ window.addEventListener('DOMContentLoaded', () => {
       warnOverlay.classList.add('hidden');
       beginBoot();
       if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
+      try {
+        // 立即確保初始音效在 iOS 手勢後開始
+        if (typeof ensureInitialAudio === 'function') ensureInitialAudio();
+      } catch (_) {}
     }, { passive: true });
   } else {
     // 無警告覆蓋層時，直接進入原先流程
