@@ -374,6 +374,43 @@ async function __tmDecode(url) {
 async function playHear() {
   try {
     if (typeof window.__tmResumeCtx === 'function') await window.__tmResumeCtx();
+
+    // iOS 專用播放路徑：使用 HTMLAudioElement + GainNode 提升音量
+    const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isiOS) {
+      const el = document.getElementById('hear-sound');
+      if (el) {
+        try {
+          const ctx = __tmGetCtx();
+          if (ctx) {
+            if (!el.__boostConnected) {
+              const srcNode = ctx.createMediaElementSource(el);
+              const gainNode = ctx.createGain();
+              gainNode.gain.value = 1.4;
+              window.__tmHearElementGain = gainNode;
+              srcNode.connect(gainNode).connect(ctx.destination);
+              el.__boostConnected = true;
+              console.log('[Hear][iOS] Gain boost connected: 1.4');
+            } else if (window.__tmHearElementGain) {
+              window.__tmHearElementGain.gain.value = 1.4;
+              console.log('[Hear][iOS] Gain boost updated: 1.4');
+            }
+          }
+          el.currentTime = 0;
+          el.volume = 1.0;
+          const p = el.play();
+          if (p && typeof p.then === 'function') {
+            p.then(() => console.log('[Hear] Played via HTMLAudioElement on iOS')).catch(()=>{});
+          }
+        } catch (e) {
+          console.warn('[Hear] iOS HTMLAudio path failed:', e);
+        }
+      } else {
+        console.warn('[Hear] element missing');
+      }
+      return;
+    }
+
     const ctx = __tmGetCtx(); if (!ctx) { // 備援：改用 HTMLAudioElement
       const el = document.getElementById('hear-sound');
       if (el) { try { el.currentTime = 0; el.volume = 1.0; el.play().catch(()=>{}); console.warn('[Hear] Fallback to HTMLAudioElement'); } catch(_){} }
