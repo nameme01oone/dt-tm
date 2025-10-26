@@ -435,9 +435,10 @@ function startMainSequence() {
     'RUN',
     'RUN',
     'RUN',
-    'find my father',
+    'find',
+    'my father',
     'protect',
-    'my people.',
+    'our people.',
     '<Signal lost>',
     '<Signal lost>',
     '<Signal lost>'
