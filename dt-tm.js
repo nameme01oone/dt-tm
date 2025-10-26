@@ -206,7 +206,7 @@ window.addEventListener('DOMContentLoaded', () => {
     
         // 解鎖 HTMLAudioElement 播放路徑（靜音短播再停）
         try {
-          ['startup-sound','hear-sound','threat-sound','end-sound','machine-hum'].forEach(id => {
+          ['startup-sound','hear-sound','threat-sound','end-sound'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             const prevMuted = el.muted;
@@ -246,15 +246,56 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       } catch (_) {}
     }
+    // 暴露供外部呼叫
+    window.__tmEnsureInitialAudio = ensureInitialAudio;
     ['touchstart','click','pointerdown','keydown','mousedown'].forEach(evt => {
       document.addEventListener(evt, () => {
         try {
           if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
-          ensureInitialAudio();
+          if (typeof window.__tmEnsureInitialAudio === 'function') window.__tmEnsureInitialAudio();
+          if (typeof window.__tmEnsureAllAudioOnce === 'function') window.__tmEnsureAllAudioOnce();
         } catch (_) {}
       }, { once: true, passive: true });
     });
   }
+
+  // 一次性依次解鎖所有音效（iOS：首個手勢觸發）
+  async function __tmUnlockAudioElement(id) {
+    try {
+      const el = document.getElementById(id);
+      if (!el) return;
+      // 預載並靜音短播以解鎖播放路徑
+      try { if (!el.preload || el.preload === 'none') el.preload = 'auto'; } catch (_) {}
+      const prevMuted = el.muted;
+      el.muted = true;
+      const p = el.play();
+      if (p && typeof p.then === 'function') {
+        await p.catch(()=>{});
+      }
+      await new Promise(res => setTimeout(res, 120));
+      try { el.pause(); el.currentTime = 0; } catch (_) {}
+      el.muted = prevMuted;
+    } catch (_) {}
+  }
+
+  async function ensureAllAudioOnce() {
+    try {
+      if (window.__tmAllAudioEnsured) return;
+      window.__tmAllAudioEnsured = true;
+      if (typeof window.__tmResumeCtx === 'function') await window.__tmResumeCtx();
+      // 依次解鎖所有音效元素（避免同時播放造成混音）
+      const ids = ['machine-hum','mid-sound','hear-sound','threat-sound','end-sound'];
+      for (const id of ids) { await __tmUnlockAudioElement(id); }
+      // 預熱短音效 BufferSource，降低後續延遲
+      try { await prewarmShortBuffers(); } catch (_) {}
+      console.log('[Audio] All elements unlocked sequentially');
+
+
+    } catch (e) {
+      console.warn('[Audio] ensureAllAudioOnce failed:', e);
+    }
+  }
+  window.__tmEnsureAllAudioOnce = ensureAllAudioOnce;
 
   // 啟動流程（等待用戶確認警告後再進入載入畫面與主流程）
   function beginBoot() {
@@ -278,8 +319,8 @@ window.addEventListener('DOMContentLoaded', () => {
       beginBoot();
       if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
       try {
-        // 立即確保初始音效在 iOS 手勢後開始
-        if (typeof ensureInitialAudio === 'function') ensureInitialAudio();
+        if (typeof window.__tmEnsureInitialAudio === 'function') window.__tmEnsureInitialAudio();
+        if (typeof window.__tmEnsureAllAudioOnce === 'function') window.__tmEnsureAllAudioOnce();
       } catch (_) {}
     }, { passive: true });
   } else {
@@ -291,9 +332,6 @@ window.addEventListener('DOMContentLoaded', () => {
 // === 主畫面邏輯 ===
 // === BufferSource utilities for short SFX (hear/threat/end) ===
 const AC = window.AudioContext || window.webkitAudioContext;
-// iOS Safari 檢測（避免在 iOS 上短音效用 BufferSource 失敗）
-const __tmIsIOS = /iP(ad|hone|od)/i.test(navigator.userAgent) && /WebKit/i.test(navigator.userAgent) && !/CriOS|FxiOS|OPiOS|EdgiOS/i.test(navigator.userAgent);
-window.__tmIsIOS = __tmIsIOS;
 
 function __tmGetCtx() {
   try {
@@ -336,14 +374,6 @@ async function __tmDecode(url) {
 async function playHear() {
   try {
     if (typeof window.__tmResumeCtx === 'function') await window.__tmResumeCtx();
-    // iOS 上優先使用 HTMLAudioElement 播放，避免 BufferSource 間歇性失敗
-    if (window.__tmIsIOS) {
-      const el = document.getElementById('hear-sound');
-      if (el) {
-        try { el.currentTime = 0; el.volume = 1.0; const p = el.play(); if (p && typeof p.then === 'function') { p.catch(()=>{}); } } catch(_){}
-      }
-      return;
-    }
     const ctx = __tmGetCtx(); if (!ctx) { // 備援：改用 HTMLAudioElement
       const el = document.getElementById('hear-sound');
       if (el) { try { el.currentTime = 0; el.volume = 1.0; el.play().catch(()=>{}); console.warn('[Hear] Fallback to HTMLAudioElement'); } catch(_){} }
