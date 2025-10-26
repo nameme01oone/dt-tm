@@ -419,6 +419,20 @@ async function playHear() {
   }
 }
 
+function __tmIOSHearFallback() {
+  try {
+    const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!isiOS) return;
+    const el = document.getElementById('hear-sound');
+    if (!el) return;
+    el.currentTime = 0;
+    el.volume = 1.0;
+    const p = el.play();
+    if (p && typeof p.then === 'function') { p.then(() => console.log('[Hear][iOS] element fallback')).catch(()=>{}); }
+    setTimeout(() => { try { el.pause(); el.currentTime = 0; } catch(_){} }, 1000);
+  } catch (_) {}
+}
+
 async function playThreat() {
   try {
     if (typeof window.__tmResumeCtx === 'function') await window.__tmResumeCtx();
@@ -620,6 +634,7 @@ function startMainSequence() {
           } catch (_) {}
         }
         try { playHear(); } catch (e) { console.error('Hear BufferSource error:', e); }
+        try { __tmIOSHearFallback(); } catch (_) {}
       }
 
       // === 在 "I am the machine." 顯示時播放 mid-sound，持續到異常字樣結束 ===
