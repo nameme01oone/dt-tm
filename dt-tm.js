@@ -375,47 +375,13 @@ async function playHear() {
   try {
     if (typeof window.__tmResumeCtx === 'function') await window.__tmResumeCtx();
 
-    // iOS 專用播放路徑：使用 HTMLAudioElement + GainNode 提升音量
-    const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (isiOS) {
+    const ctx = __tmGetCtx();
+    if (!ctx) { // 備援：改用 HTMLAudioElement
       const el = document.getElementById('hear-sound');
-      if (el) {
-        try {
-          const ctx = __tmGetCtx();
-          if (ctx) {
-            if (!el.__boostConnected) {
-              const srcNode = ctx.createMediaElementSource(el);
-              const gainNode = ctx.createGain();
-              gainNode.gain.value = 1.4;
-              window.__tmHearElementGain = gainNode;
-              srcNode.connect(gainNode).connect(ctx.destination);
-              el.__boostConnected = true;
-              console.log('[Hear][iOS] Gain boost connected: 1.4');
-            } else if (window.__tmHearElementGain) {
-              window.__tmHearElementGain.gain.value = 1.4;
-              console.log('[Hear][iOS] Gain boost updated: 1.4');
-            }
-          }
-          el.currentTime = 0;
-          el.volume = 1.0;
-          const p = el.play();
-          if (p && typeof p.then === 'function') {
-            p.then(() => console.log('[Hear] Played via HTMLAudioElement on iOS')).catch(()=>{});
-          }
-        } catch (e) {
-          console.warn('[Hear] iOS HTMLAudio path failed:', e);
-        }
-      } else {
-        console.warn('[Hear] element missing');
-      }
+      if (el) { try { el.currentTime = 0; el.volume = 1.0; const p = el.play(); if (p && typeof p.then === 'function') p.catch(()=>{}); console.warn('[Hear] Fallback to HTMLAudioElement (no AudioContext)'); } catch(_){} }
       return;
     }
 
-    const ctx = __tmGetCtx(); if (!ctx) { // 備援：改用 HTMLAudioElement
-      const el = document.getElementById('hear-sound');
-      if (el) { try { el.currentTime = 0; el.volume = 1.0; el.play().catch(()=>{}); console.warn('[Hear] Fallback to HTMLAudioElement'); } catch(_){} }
-      return;
-    }
     const buf = window.__tmHearBuffer || await __tmDecode('sound/Root2_1_01.mp3');
     window.__tmHearBuffer = buf;
     if (!buf) { // 備援：改用 HTMLAudioElement
@@ -423,21 +389,30 @@ async function playHear() {
       if (el) { try { el.currentTime = 0; el.volume = 1.0; el.play().catch(()=>{}); console.warn('[Hear] Fallback to HTMLAudioElement (no buffer)'); } catch(_){} }
       return;
     }
-    const gain = window.__tmHearGain || ctx.createGain();
-    gain.gain.value = 1.35;
-    window.__tmHearGain = gain;
+    const gain = ctx.createGain();
+    const now = ctx.currentTime;
+    try {
+      gain.gain.setValueAtTime(0.0, now);
+      gain.gain.linearRampToValueAtTime(1.5, now + 0.12);
+    } catch (_) {
+      gain.gain.value = 1.5;
+    }
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(gain).connect(ctx.destination);
     window.__tmHearSrc = src;
     try {
-      src.start(ctx.currentTime + 0.01);
-      src.onended = () => { try { src.disconnect(); } catch(_){} if (window.__tmHearSrc === src) window.__tmHearSrc = null; };
-      console.log('[Hear] Played via BufferSource');
+      src.start(now + 0.04);
+      src.onended = () => {
+        try { src.disconnect(); } catch(_){}
+        try { gain.disconnect(); } catch(_){}
+        if (window.__tmHearSrc === src) window.__tmHearSrc = null;
+      };
+      console.log('[Hear] Played via BufferSource with short fade-in');
     } catch (e) {
       console.warn('[Hear] BufferSource start failed, fallback to HTMLAudioElement:', e);
       const el = document.getElementById('hear-sound');
-      if (el) { try { el.currentTime = 0; el.volume = 1.0; el.play().catch(()=>{}); } catch(_){} }
+      if (el) { try { el.currentTime = 0; el.volume = 1.0; const p = el.play(); if (p && typeof p.then === 'function') p.catch(()=>{}); } catch(_){} }
     }
   } catch (e) {
     console.error('[Hear] BufferSource error:', e);
