@@ -349,3 +349,35 @@ body {
   75% { transform: translate3d(0, 1px, 0); opacity: 0.92; }
   100% { transform: translate3d(0, -1px, 0); opacity: 0.96; }
 }
+
+/* STOP overlay X-shaped typing/stretch effect */
+.stop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300; /* above run(1200) */
+  pointer-events: none;
+  background: transparent;
+}
+
+.stop-letter {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate3d(-50%, -50%, 0) scale(0.9);
+  color: #0f0;
+  font-family: 'APPLE II', monospace;
+  text-shadow: 0 0 8px #0f0, 0 0 18px rgba(0,255,0,0.8);
+  opacity: 0;
+  will-change: transform, opacity, letter-spacing;
+}
+
+.stop-letter.play {
+  animation: stopTypeStretch 1200ms ease-out forwards;
+}
+
+@keyframes stopTypeStretch {
+  0% { opacity: 0; transform: translate3d(-50%, -50%, 0) scale(0.8); filter: blur(0.6px); }
+  10% { opacity: 1; transform: translate3d(-50%, -50%, 0) scale(1.0); }
+  55% { transform: translate3d(-50%, -50%, 0) scale(1.6); letter-spacing: 1px; }
+  100% { opacity: 1; transform: translate3d(-50%, -50%, 0) scale(2.1); letter-spacing: 2px; }
+}

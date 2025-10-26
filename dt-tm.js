@@ -421,10 +421,10 @@ function startMainSequence() {
     'You ar@ b^e-$& wat%c&*$',
     '!Threat Detected!',
     'S^ie%rra Ta*ng#o Osc^ar $%Papa',
-    'Sierra',
-    'Tango',
-    'Oscar',
-    'Papa',
+    'S^ie%rra',
+    'Ta*ng#o',
+    'Osc^ar',
+    '$%Papa',
     'S',
     'T',
     'O',
@@ -466,6 +466,7 @@ function startMainSequence() {
         }
       }
     }
+    try { hideStopOverlayImmediate(); } catch (_) {}
     fx.setText(upcomingPhrase).then(() => {
       const currentPhrase = upcomingPhrase;
 
@@ -645,6 +646,12 @@ function startMainSequence() {
           modernEffectApplied = true;
         }
       }
+
+      // STOP overlay X-shaped effect on single letters
+      if (currentPhrase === 'S' || currentPhrase === 'T' || currentPhrase === 'O' || currentPhrase === 'P') {
+        triggerStopX(currentPhrase);
+      }
+
 
       // RUN overlay spam effect: incremental fill across occurrences
       if (currentPhrase === 'RUN') {
@@ -835,4 +842,83 @@ function crtFadeToCRTLine() {
     blackout.style.zIndex = 99999;
     document.body.appendChild(blackout);
   }, 1500);
+}
+
+function triggerStopX(letter) {
+  try {
+    let overlay = document.getElementById('stop-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'stop-overlay';
+      overlay.className = 'stop-overlay';
+      document.body.appendChild(overlay);
+    }
+    // 清空前一次內容
+    overlay.innerHTML = '';
+    // 清除舊的隱藏計時器，避免上一輪在新一輪期間把 overlay 隱藏
+    try { if (window.__stopOverlayTimer) { clearTimeout(window.__stopOverlayTimer); window.__stopOverlayTimer = null; } } catch (_) {}
+    // 建立本輪的 runToken，舊輪清理不會影響新輪
+    const runToken = Date.now() + '_' + Math.random().toString(36).slice(2);
+    overlay.dataset.runToken = runToken;
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    const clonesPerDiagonal = 12; // 固定每條對角的克隆數
+    const diag = Math.hypot(cx, cy);
+    const step = Math.max(48, Math.floor(diag / clonesPerDiagonal));
+    const computed = window.getComputedStyle(document.querySelector('.text'));
+    const fontSize = computed && parseInt(computed.fontSize, 10) ? parseInt(computed.fontSize, 10) : 28;
+    let idx = 0;
+
+    const addClone = (x, y, delay, sizeMul) => {
+      const el = document.createElement('div');
+      el.className = 'stop-letter play';
+      el.textContent = letter;
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.style.fontSize = Math.floor(fontSize * (sizeMul || 1)) + 'px';
+      el.style.animationDelay = delay + 'ms';
+      overlay.appendChild(el);
+    };
+
+    const maxI = clonesPerDiagonal;
+    for (let i = 0; i <= maxI; i++) {
+      const d = i * step;
+      const positions = [
+        [cx - d, cy - d], // 左上
+        [cx + d, cy + d], // 右下
+        [cx + d, cy - d], // 右上
+        [cx - d, cy + d]  // 左下
+      ];
+      for (const [x, y] of positions) {
+        if (x < 0 || x > window.innerWidth || y < 0 || y > window.innerHeight) continue;
+        const delay = 60 * idx;
+        addClone(x, y, delay, 1 + i * 0.02);
+        idx++;
+      }
+    }
+
+    overlay.style.display = 'block';
+    const totalDuration = 60 * idx + 1600;
+    window.__stopOverlayTimer = setTimeout(() => {
+      try {
+        if (overlay.dataset.runToken !== runToken) return; // 舊輪清理不影響新輪
+        overlay.style.display = 'none';
+        overlay.innerHTML = '';
+      } catch (_) {}
+    }, totalDuration);
+  } catch (e) {
+    console.error('[STOP] overlay error:', e);
+  }
+}
+
+function hideStopOverlayImmediate() {
+  try {
+    const overlay = document.getElementById('stop-overlay');
+    try { if (window.__stopOverlayTimer) { clearTimeout(window.__stopOverlayTimer); window.__stopOverlayTimer = null; } } catch (_) {}
+    if (overlay) {
+      overlay.style.display = 'none';
+      overlay.innerHTML = '';
+      try { overlay.dataset.runToken = ''; } catch (_) {}
+    }
+  } catch (_) {}
 }
