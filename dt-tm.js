@@ -206,7 +206,7 @@ window.addEventListener('DOMContentLoaded', () => {
     
         // 解鎖 HTMLAudioElement 播放路徑（靜音短播再停）
         try {
-          ['startup-sound','hear-sound','threat-sound','end-sound'].forEach(id => {
+          ['startup-sound','hear-sound','threat-sound','end-sound','machine-hum'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             const prevMuted = el.muted;
@@ -291,6 +291,9 @@ window.addEventListener('DOMContentLoaded', () => {
 // === 主畫面邏輯 ===
 // === BufferSource utilities for short SFX (hear/threat/end) ===
 const AC = window.AudioContext || window.webkitAudioContext;
+// iOS Safari 檢測（避免在 iOS 上短音效用 BufferSource 失敗）
+const __tmIsIOS = /iP(ad|hone|od)/i.test(navigator.userAgent) && /WebKit/i.test(navigator.userAgent) && !/CriOS|FxiOS|OPiOS|EdgiOS/i.test(navigator.userAgent);
+window.__tmIsIOS = __tmIsIOS;
 
 function __tmGetCtx() {
   try {
@@ -333,6 +336,14 @@ async function __tmDecode(url) {
 async function playHear() {
   try {
     if (typeof window.__tmResumeCtx === 'function') await window.__tmResumeCtx();
+    // iOS 上優先使用 HTMLAudioElement 播放，避免 BufferSource 間歇性失敗
+    if (window.__tmIsIOS) {
+      const el = document.getElementById('hear-sound');
+      if (el) {
+        try { el.currentTime = 0; el.volume = 1.0; const p = el.play(); if (p && typeof p.then === 'function') { p.catch(()=>{}); } } catch(_){}
+      }
+      return;
+    }
     const ctx = __tmGetCtx(); if (!ctx) { // 備援：改用 HTMLAudioElement
       const el = document.getElementById('hear-sound');
       if (el) { try { el.currentTime = 0; el.volume = 1.0; el.play().catch(()=>{}); console.warn('[Hear] Fallback to HTMLAudioElement'); } catch(_){} }
