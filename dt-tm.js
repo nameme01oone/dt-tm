@@ -78,6 +78,64 @@ window.addEventListener('DOMContentLoaded', () => {
   const loadingScreen = document.getElementById('loading');
   const mainScreen = document.getElementById('main');
   const audio = document.getElementById('startup-sound');
+  const muteToggle = document.getElementById('mute-toggle');
+
+  // 全域靜音切換
+  window.__tmMuted = false;
+  function __tmSetGlobalMute(muted) {
+    try {
+      window.__tmMuted = !!muted;
+      // 確保 AudioContext 可調整增益
+      if (typeof window.__tmResumeCtx === 'function') window.__tmResumeCtx();
+      // HTMLAudioElement：直接使用 muted 屬性，不改動原音量設定
+      try {
+        document.querySelectorAll('audio').forEach(el => {
+          try { el.muted = window.__tmMuted; } catch (_) {}
+        });
+      } catch (_) {}
+      // Web Audio API：對已存在的 GainNode 套用淡入/淡出
+      try {
+        const ctx = __tmGetCtx();
+        if (ctx) {
+          const now = ctx.currentTime;
+          const applyGain = (gain, base) => {
+            if (!gain) return;
+            try {
+              gain.gain.cancelScheduledValues(now);
+              if (window.__tmMuted) {
+                gain.gain.setValueAtTime(gain.gain.value, now);
+                gain.gain.linearRampToValueAtTime(0.0, now + 0.06);
+              } else {
+                gain.gain.setValueAtTime(0.0, now);
+                gain.gain.linearRampToValueAtTime(base, now + 0.12);
+              }
+            } catch (_) {
+              gain.gain.value = window.__tmMuted ? 0.0 : base;
+            }
+          };
+          applyGain(window.__tmHearGain, 1.5);
+          applyGain(window.__tmThreatGain, 0.8);
+          applyGain(window.__tmEndGain, 1.1);
+          applyGain(window.__tmMidGain, 1.1);
+        }
+      } catch (_) {}
+      // 更新按鈕文字與狀態
+      try {
+        if (muteToggle) {
+          muteToggle.textContent = window.__tmMuted ? 'UNMUTE' : 'MUTE';
+          if (window.__tmMuted) muteToggle.classList.add('active'); else muteToggle.classList.remove('active');
+        }
+      } catch (_) {}
+    } catch (e) {
+      console.error('[Mute] setGlobalMute error:', e);
+    }
+  }
+  window.__tmSetGlobalMute = __tmSetGlobalMute;
+  if (muteToggle) {
+    muteToggle.addEventListener('click', () => {
+      try { __tmSetGlobalMute(!window.__tmMuted); } catch (_) {}
+    }, { passive: true });
+  }
 
   // iOS Safari 初始化延遲優化：頁面 ready 後對所有音訊元素執行一次 load()
   try {
@@ -392,14 +450,19 @@ async function playHear() {
     const gain = ctx.createGain();
     const now = ctx.currentTime;
     try {
-      gain.gain.setValueAtTime(0.0, now);
-      gain.gain.linearRampToValueAtTime(1.5, now + 0.12);
+      if (window.__tmMuted) {
+        gain.gain.setValueAtTime(0.0, now);
+      } else {
+        gain.gain.setValueAtTime(0.0, now);
+        gain.gain.linearRampToValueAtTime(1.5, now + 0.12);
+      }
     } catch (_) {
-      gain.gain.value = 1.5;
+      gain.gain.value = window.__tmMuted ? 0.0 : 1.5;
     }
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(gain).connect(ctx.destination);
+    window.__tmHearGain = gain;
     window.__tmHearSrc = src;
     try {
       src.start(now + 0.04);
@@ -449,7 +512,7 @@ async function playThreat() {
       return;
     }
     const gain = window.__tmThreatGain || ctx.createGain();
-    gain.gain.value = 0.8;
+    gain.gain.value = window.__tmMuted ? 0.0 : 0.8;
     window.__tmThreatGain = gain;
     const src = ctx.createBufferSource();
     src.buffer = buf;
@@ -485,7 +548,7 @@ async function playEnd() {
       return;
     }
     const gain = window.__tmEndGain || ctx.createGain();
-    gain.gain.value = 1.1;
+    gain.gain.value = window.__tmMuted ? 0.0 : 1.1;
     window.__tmEndGain = gain;
     const src = ctx.createBufferSource();
     src.buffer = buf;

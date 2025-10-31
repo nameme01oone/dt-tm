@@ -521,3 +521,32 @@ body {
     text-shadow: 0 0 12px currentColor, 0 0 32px currentColor, 0 0 60px currentColor;
   }
 }
+
+/* MUTE/UNMUTE toggle button */
+.mute-toggle {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 3000;
+  padding: 8px 14px;
+  border: 1px solid #0f0;
+  background: rgba(0, 0, 0, 0.35);
+  color: #0f0;
+  font-family: 'APPLE II', monospace;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px #0f0;
+  box-shadow: 0 0 10px rgba(0,255,0,0.45), inset 0 0 8px rgba(0,255,0,0.2);
+  cursor: pointer;
+  backdrop-filter: blur(1px);
+}
+.mute-toggle:hover {
+  filter: brightness(1.15);
+}
+.mute-toggle.active {
+  border-color: #9f9;
+  color: #9f9;
+  text-shadow: 0 0 10px #9f9;
+  box-shadow: 0 0 12px rgba(160,255,160,0.6), inset 0 0 9px rgba(160,255,160,0.3);
+}
