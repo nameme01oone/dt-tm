@@ -39,7 +39,16 @@
       </div>
     </div>
     <!-- 全域靜音切換按鈕 -->
-    <button id="mute-toggle" class="mute-toggle" aria-label="Toggle Mute">MUTE</button>
+    <button id="mute-toggle" class="mute-toggle" aria-label="Mute" title="Mute">
+      <svg class="mute-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <!-- Speaker body -->
+        <path class="speaker" d="M4 9v6h4l5 5V4l-5 5H4z"></path>
+        <!-- Sound waves (hidden when muted) -->
+        <path class="waves" d="M16 8c2 1.4 3 3 3 4s-1 2.6-3 4"></path>
+        <!-- Slash (visible when muted) -->
+        <path class="slash" d="M5 5L19 19"></path>
+      </svg>
+    </button>
     <audio id="startup-sound" loop preload="auto" playsinline webkit-playsinline>
   <source src="sound/samaritan_sound_effects_01.mp3" type="audio/mpeg">
 </audio>

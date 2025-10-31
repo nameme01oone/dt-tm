@@ -122,7 +122,9 @@ window.addEventListener('DOMContentLoaded', () => {
       // 更新按鈕文字與狀態
       try {
         if (muteToggle) {
-          muteToggle.textContent = window.__tmMuted ? 'UNMUTE' : 'MUTE';
+          const label = window.__tmMuted ? 'Unmute' : 'Mute';
+          muteToggle.setAttribute('aria-label', label);
+          try { muteToggle.setAttribute('title', label); } catch (_) {}
           if (window.__tmMuted) muteToggle.classList.add('active'); else muteToggle.classList.remove('active');
         }
       } catch (_) {}
